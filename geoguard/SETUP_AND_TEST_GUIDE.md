@@ -120,7 +120,7 @@ curl -X POST http://localhost:8000/classify \
 curl -X POST http://localhost:8000/classify \
   -H "Content-Type: application/json" \
   -d '{
-    "feature_id": "F-002", 
+    "feature_id": "F-002",
     "feature_name": "South Korea dark theme A/B experiment",
     "feature_description": "A/B test dark theme accessibility for users in South Korea. Rollout is limited via GH and monitored with FR flags."
   }'
@@ -133,7 +133,7 @@ curl -X POST http://localhost:8000/classify \
   -H "Content-Type: application/json" \
   -d '{
     "feature_id": "F-003",
-    "feature_name": "A video filter available globally except KR", 
+    "feature_name": "A video filter available globally except KR",
     "feature_description": "Feature is available in all regions except Korea; no legal rationale stated."
   }'
 ```
@@ -155,7 +155,7 @@ cat out/geoguard_results.csv   # Linux/Mac
 ```bash
 # Check audit logs are created
 type audit\audit.jsonl  # Windows
-# or  
+# or
 cat audit/audit.jsonl   # Linux/Mac
 ```
 
