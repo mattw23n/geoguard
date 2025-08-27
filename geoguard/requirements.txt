@@ -1,0 +1,11 @@
+fastapi
+uvicorn
+pydantic
+requests
+pandas
+pyyaml
+spacy
+pytest
+numpy
+streamlit
+plotly
