@@ -301,18 +301,38 @@ def batch_processing_page():
     col1, col2 = st.columns([3, 1])
     
     with col1:
-        st.subheader("📁 Dataset Management")
+        st.subheader("📁 Dataset Selection")
         
-        # Current dataset info
-        synthetic_path = parent_dir / "data" / "synthetic.csv"
-        if synthetic_path.exists():
-            df = pd.read_csv(synthetic_path)
-            st.success(f"✅ Loaded synthetic dataset: {len(df)} features")
+        # Dataset selection
+        dataset_option = st.selectbox(
+            "Choose dataset to process:",
+            [
+                ("Synthetic Dataset", "synthetic"),
+                ("Sample Data", "sampledata")
+            ],
+            format_func=lambda x: x[0]
+        )
+        
+        selected_dataset = dataset_option[1]
+        
+        # Load selected dataset
+        if selected_dataset == "synthetic":
+            dataset_path = parent_dir / "data" / "synthetic.csv"
+            results_file = "geoguard_results.csv"
+            script_name = "generate_results.py"
+        else:  # sampledata
+            dataset_path = parent_dir / "data" / "sampledata.csv"
+            results_file = "sampledata_results.csv"
+            script_name = "test_sampledata.py"
+        
+        if dataset_path.exists():
+            df = pd.read_csv(dataset_path)
+            st.success(f"✅ Loaded {dataset_option[0]}: {len(df)} features")
             
             with st.expander("📋 View Dataset"):
                 st.dataframe(df, use_container_width=True)
         else:
-            st.error("❌ Synthetic dataset not found!")
+            st.error(f"❌ {dataset_option[0]} not found!")
             return
         
         # Batch processing controls
@@ -322,22 +342,34 @@ def batch_processing_page():
         
         with col_a:
             if st.button("▶️ Run Batch Classification", type="primary"):
-                with st.spinner("🔄 Processing all features..."):
+                with st.spinner(f"🔄 Processing {dataset_option[0]}..."):
                     try:
-                        generate_batch_results()
+                        if selected_dataset == "synthetic":
+                            generate_batch_results()
+                        else:  # sampledata
+                            import subprocess
+                            import sys
+                            result = subprocess.run([
+                                sys.executable, 
+                                str(parent_dir / "scripts" / "test_sampledata.py")
+                            ], cwd=str(parent_dir), capture_output=True, text=True)
+                            
+                            if result.returncode != 0:
+                                raise Exception(f"Script failed: {result.stderr}")
+                            
                         st.success("✅ Batch processing complete!")
                         st.balloons()
                     except Exception as e:
                         st.error(f"❌ Batch processing failed: {e}")
         
         with col_b:
-            results_path = parent_dir / "out" / "geoguard_results.csv"
+            results_path = parent_dir / "out" / results_file
             if results_path.exists():
                 with open(results_path, 'rb') as f:
                     st.download_button(
                         "⬇️ Download Results CSV",
                         f.read(),
-                        file_name="geoguard_results.csv",
+                        file_name=results_file,
                         mime="text/csv"
                     )
     
@@ -345,7 +377,7 @@ def batch_processing_page():
         st.subheader("📈 Processing Status")
         
         # Check for existing results
-        results_path = parent_dir / "out" / "geoguard_results.csv"
+        results_path = parent_dir / "out" / results_file
         if results_path.exists():
             results_df = pd.read_csv(results_path)
             
@@ -379,6 +411,7 @@ def batch_processing_page():
             st.info("📋 No results available. Run batch processing to generate results.")
     
     # Results viewer
+    results_path = parent_dir / "out" / results_file
     if results_path.exists():
         st.subheader("📊 Results Viewer")
         
@@ -517,7 +550,8 @@ def system_status_page():
             ("Terminology", "data/terminology.yaml"),
             ("Positive Phrasebook", "data/phrasebook/positive.txt"),
             ("Negative Phrasebook", "data/phrasebook/negative.txt"),
-            ("Synthetic Dataset", "data/synthetic.csv")
+            ("Synthetic Dataset", "data/synthetic.csv"),
+            ("Sample Data", "data/sampledata.csv")
         ]
         
         for name, path in data_files:
