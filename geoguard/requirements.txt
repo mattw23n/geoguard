@@ -9,3 +9,4 @@ pytest
 numpy
 streamlit
 plotly
+google-generativeai

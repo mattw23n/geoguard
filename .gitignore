@@ -2,3 +2,4 @@
 .env.local
 image/
 pytest.ini
+audit.jsonl
