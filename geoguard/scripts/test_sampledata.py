@@ -62,25 +62,25 @@ def flatten_result_for_csv(result):
 
 def main():
     """Main execution function"""
-    print("🚀 GeoGuard Sample Data Classification Starting...")
+    print("GeoGuard Sample Data Classification Starting...")
     
     try:
         # Load sample dataset
         features = load_sample_data()
-        print(f"📋 Loaded {len(features)} features from sampledata.csv")
+        print(f"Loaded {len(features)} features from sampledata.csv")
         
         # Process each feature
         results = []
         for i, feature in enumerate(features, 1):
-            print(f"🔄 Processing {i}/{len(features)}: {feature['feature_id']} - {feature['feature_name'][:50]}...")
+            print(f"Processing {i}/{len(features)}: {feature['feature_id']} - {feature['feature_name'][:50]}...")
             try:
                 result = classify_feature(feature)
                 # Add feature name to result for easier tracking
                 result["feature_name"] = feature["feature_name"]
                 results.append(result)
-                print(f"   ✅ Decision: {result['decision']} (confidence: {result['confidence']:.2f})")
+                print(f"   Decision: {result['decision']} (confidence: {result['confidence']:.2f})")
             except Exception as e:
-                print(f"   ❌ Error processing {feature['feature_id']}: {e}")
+                print(f"   Error processing {feature['feature_id']}: {e}")
                 # Add error result
                 results.append({
                     "feature_id": feature["feature_id"],
@@ -113,26 +113,26 @@ def main():
         with open(json_path, 'w', encoding='utf-8') as f:
             json.dump(results, f, indent=2, ensure_ascii=False)
         
-        print(f"\n✅ Sample Data Test Complete!")
-        print(f"📊 Processed: {len(results)} features")
-        print(f"📄 CSV Output: {csv_path}")
-        print(f"🔍 JSON Output: {json_path}")
+        print(f"\nSample Data Test Complete!")
+        print(f"Processed: {len(results)} features")
+        print(f"CSV Output: {csv_path}")
+        print(f"JSON Output: {json_path}")
         
         # Summary statistics
         decisions = [r["decision"] for r in results]
-        print(f"\n📈 Results Summary:")
+        print(f"\nResults Summary:")
         for decision_type in ["YES", "NO", "REVIEW", "ERROR"]:
             count = decisions.count(decision_type)
             if count > 0:
                 print(f"   {decision_type}: {count}")
         
         # Show some interesting results
-        print(f"\n🎯 Sample Results:")
+        print(f"\nSample Results:")
         for result in results[:5]:  # Show first 5
             print(f"   {result['feature_id']}: {result['decision']} ({result['confidence']:.2f}) - {result['feature_name'][:40]}...")
                 
     except Exception as e:
-        print(f"❌ Fatal error: {e}")
+        print(f"Fatal error: {e}")
         import traceback
         traceback.print_exc()
         sys.exit(1)

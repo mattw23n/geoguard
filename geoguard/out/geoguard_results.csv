@@ -1,4 +1,0 @@
-feature_id,decision,confidence,reasoning_summary,regulations,control_type,evidence_feature_spans,evidence_reg_snippets
-F-001,YES,0.85,Legal compliance detected (see phrasebook cues).,UT-SMRA,age_gating,"To comply with the Utah Social Media Regulation Act, we implement a curfew-based login restriction for minors.","""Social media platforms must disable personalized feeds for users under 18 by default."",""Providers must implement mechanisms to restrict access to content in compliance with EU law."""
-F-002,NO,0.95,Business geofence detected (see phrasebook cues).,,,A/B test dark theme accessibility for users in South Korea. Rollout is limited via GH (Geo-handler; module for routing features by user region) and monitored with FR (Feature rollout status) flags.,
-F-003,REVIEW,0.5,Insufficient evidence.,,,Feature is available in all regions except Korea; no legal rationale stated.,
