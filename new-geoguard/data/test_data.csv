@@ -1,0 +1,5 @@
+feature_description,ground_truth_classification
+"Feature allows users to download videos. To comply with France's copyright rules, this is blocked in France.","YES"
+"We are rolling out the new 'Stickers' feature to the US and Canada first for market testing purposes.","NO"
+"This feature requires users to verify they are over 18 to comply with Indonesia's Child Protection Law.","YES"
+"The new video filter is available globally except in South Korea due to performance issues on local servers.","NO"

@@ -3,3 +3,5 @@
 image/
 pytest.ini
 audit.jsonl
+venv/
+__pycache__/
