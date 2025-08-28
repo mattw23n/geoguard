@@ -1,0 +1,250 @@
+{
+  "test_cases": [
+    {
+      "category": "Clear Legal Compliance - Age Gating",
+      "cases": [
+        {
+          "feature_id": "TC-001",
+          "feature_name": "Jellybean parental consent flow for EU users",
+          "feature_description": "Implementation of parental consent mechanism using our Jellybean system to comply with DSA requirements for users under 18 in European Union territories. Uses ASL logic to verify age before content access.",
+          "expected_decision": "YES",
+          "expected_regulations": ["DSA"],
+          "expected_control_type": ["age_gating", "parental_consent"],
+          "test_reasoning": "Clear legal terminology with specific regulation reference and age-related controls"
+        },
+        {
+          "feature_id": "TC-002", 
+          "feature_name": "Snowcap minor verification for CA SB-976",
+          "feature_description": "Deploying Snowcap policy framework to implement minor verification checks for California users. System blocks addictive features during school hours and implements usage time limits per SB-976 requirements. DRT set to 30 days for compliance logs.",
+          "expected_decision": "YES",
+          "expected_regulations": ["CA-SB976"],
+          "expected_control_type": ["age_gating", "content_restriction", "data_retention"],
+          "test_reasoning": "Multiple compliance signals with specific regulation citation and control types"
+        }
+      ]
+    },
+    {
+      "category": "Clear Legal Compliance - Content Moderation",
+      "cases": [
+        {
+          "feature_id": "TC-003",
+          "feature_name": "CSAM detection with NCMEC reporting",
+          "feature_description": "Automated detection system that identifies potential child sexual abuse material and triggers mandatory reporting to NCMEC within 24 hours as required by federal law. EchoTrace logs maintained for audit purposes.",
+          "expected_decision": "YES",
+          "expected_regulations": ["US-NCMEC"],
+          "expected_control_type": ["reporting", "notice_and_action"],
+          "test_reasoning": "Clear CSAM reporting requirement with specific legal obligation"
+        },
+        {
+          "feature_id": "TC-004",
+          "feature_name": "EU copyright takedown automation",
+          "feature_description": "Automated system for processing copyright takedown requests in EU territories per DSA notice and action requirements. Implements GH-based routing to ensure local compliance policy (LCP) adherence.",
+          "expected_decision": "YES", 
+          "expected_regulations": ["DSA"],
+          "expected_control_type": ["notice_and_action", "content_restriction"],
+          "test_reasoning": "Copyright compliance with geographic routing for legal requirements"
+        }
+      ]
+    },
+    {
+      "category": "Clear Business Geofencing",
+      "cases": [
+        {
+          "feature_id": "TC-005",
+          "feature_name": "Korean market PF algorithm test",
+          "feature_description": "A/B testing new personalized feed (PF) algorithm optimizations for Korean market. Feature rollout (FR) limited to 10% of KR users to measure engagement metrics. Spanner rules route traffic appropriately.",
+          "expected_decision": "NO",
+          "expected_regulations": [],
+          "expected_control_type": [],
+          "test_reasoning": "Clear A/B test language with market experimentation focus, no legal compliance signals"
+        },
+        {
+          "feature_id": "TC-006",
+          "feature_name": "Japan creator fund payout experiment",
+          "feature_description": "Trial run of new creator monetization features in Japan market. Testing payment processing improvements and reward distribution mechanisms. GH handles regional routing for this market experiment.",
+          "expected_decision": "NO",
+          "expected_regulations": [],
+          "expected_control_type": [],
+          "test_reasoning": "Business experimentation with creator payments, no legal compliance context"
+        }
+      ]
+    },
+    {
+      "category": "Ambiguous Cases - Missing Context",
+      "cases": [
+        {
+          "feature_id": "TC-007",
+          "feature_name": "Video filter disabled in Germany",
+          "feature_description": "New video enhancement filter available globally except in Germany. Feature uses advanced AI processing and is currently blocked in DE region via GH routing. No specific rationale documented.",
+          "expected_decision": "REVIEW",
+          "expected_regulations": [],
+          "expected_control_type": [],
+          "test_reasoning": "Geographic exclusion without clear legal rationale - needs human review"
+        },
+        {
+          "feature_id": "TC-008",
+          "feature_name": "Data retention policy for France",
+          "feature_description": "Implementing 90-day DRT for French user data with automatic deletion. Policy applies only to France-based users. Compliance team requested this implementation but legal basis not specified in current documentation.",
+          "expected_decision": "REVIEW",
+          "expected_regulations": [],
+          "expected_control_type": ["data_retention"],
+          "test_reasoning": "Data retention suggests compliance but lacks clear legal citation"
+        }
+      ]
+    },
+    {
+      "category": "Edge Cases - Mixed Signals",
+      "cases": [
+        {
+          "feature_id": "TC-009",
+          "feature_name": "EU mood-based content with minor safeguards",
+          "feature_description": "A/B testing mood-based PF algorithm in EU with special ASL protections for underage users. Trial includes both market research components and mandatory age verification per local compliance requirements. Jellybean system handles the minor protection logic.",
+          "expected_decision": "YES",
+          "expected_regulations": ["DSA"],
+          "expected_control_type": ["age_gating"],
+          "test_reasoning": "Despite A/B test language, includes clear legal compliance requirements for minors"
+        },
+        {
+          "feature_id": "TC-010",
+          "feature_name": "Florida gaming features with parental controls",
+          "feature_description": "Rolling out new gaming integration features in Florida with enhanced parental consent mechanisms. While primarily a market expansion, includes mandatory compliance with FL minor protection laws including usage time limits and content filtering.",
+          "expected_decision": "YES",
+          "expected_regulations": ["FL-Minors"],
+          "expected_control_type": ["parental_consent", "content_restriction"],
+          "test_reasoning": "Business expansion that includes mandatory legal compliance components"
+        }
+      ]
+    },
+    {
+      "category": "Jargon-Heavy Cases",
+      "cases": [
+        {
+          "feature_id": "TC-011",
+          "feature_name": "Redline status for UT compliance",
+          "feature_description": "Feature flagged for redline review due to potential UT-SMRA implications. Implements softblock functionality for users flagged as NR in Utah region. CDS system monitors for compliance violations with IMT triggers active.",
+          "expected_decision": "YES",
+          "expected_regulations": ["UT-SMRA"],
+          "expected_control_type": ["age_gating"],
+          "test_reasoning": "Heavy jargon but clear Utah regulation reference and compliance monitoring"
+        },
+        {
+          "feature_id": "TC-012",
+          "feature_name": "Glow compliance status for T5 data",
+          "feature_description": "System implements Glow flagging for Tier 5 sensitivity data handling in EEA regions. EchoTrace monitoring active with NSP policy enforcement. ShadowMode deployment for initial compliance verification before full rollout.",
+          "expected_decision": "YES",
+          "expected_regulations": ["DSA"],
+          "expected_control_type": ["data_localization", "data_retention"],
+          "test_reasoning": "High sensitivity data handling in EU region suggests GDPR/DSA compliance"
+        }
+      ]
+    },
+    {
+      "category": "False Positive Traps",
+      "cases": [
+        {
+          "feature_id": "TC-013",
+          "feature_name": "Age-themed content variant test",
+          "feature_description": "A/B testing age-appropriate theme variations for different user demographics across global markets. Testing how users of different age groups respond to UI themes. No actual age verification or legal requirements involved.",
+          "expected_decision": "NO",
+          "expected_regulations": [],
+          "expected_control_type": [],
+          "test_reasoning": "Contains 'age' terminology but is purely UX testing, not legal compliance"
+        },
+        {
+          "feature_id": "TC-014",
+          "feature_name": "Minor UI layout experiment",
+          "feature_description": "Testing minor adjustments to the main feed layout algorithm. Small variant test to optimize user engagement through subtle interface changes. Feature uses standard A/B testing methodology.",
+          "expected_decision": "NO",
+          "expected_regulations": [],
+          "expected_control_type": [],
+          "test_reasoning": "'Minor' refers to small changes, not underage users - should not trigger false positive"
+        }
+      ]
+    },
+    {
+      "category": "Geographic Complexity",
+      "cases": [
+        {
+          "feature_id": "TC-015",
+          "feature_name": "EEA cross-border data handling",
+          "feature_description": "Feature processes user data across multiple EEA countries with automatic data localization per GDPR requirements. Implements region-specific DRT policies and cross-border transfer restrictions. BB monitoring detects compliance anomalies.",
+          "expected_decision": "YES",
+          "expected_regulations": ["DSA"],
+          "expected_control_type": ["data_localization", "data_retention"],
+          "test_reasoning": "Multi-jurisdiction data handling with clear GDPR/DSA compliance requirements"
+        },
+        {
+          "feature_id": "TC-016",
+          "feature_name": "US state-specific reporting system",
+          "feature_description": "Automated reporting system that generates different compliance reports for California, Florida, and Utah based on respective state laws. System handles CA-SB976 addiction metrics, FL minor usage data, and UT social media compliance statistics.",
+          "expected_decision": "YES",
+          "expected_regulations": ["CA-SB976", "FL-Minors", "UT-SMRA"],
+          "expected_control_type": ["reporting"],
+          "test_reasoning": "Multi-state compliance reporting with specific regulation references"
+        }
+      ]
+    },
+    {
+      "category": "Confidence Testing",
+      "cases": [
+        {
+          "feature_id": "TC-017",
+          "feature_name": "Compliance system with vague legal reference",
+          "feature_description": "Feature implements various user protections in response to 'regulatory requirements' in EU region. Includes age-related checks and content filtering but specific laws not clearly identified. Legal team indicated compliance necessary.",
+          "expected_decision": "REVIEW",
+          "expected_regulations": [],
+          "expected_control_type": ["age_gating", "content_restriction"],
+          "test_reasoning": "Vague legal reference should result in low confidence and REVIEW decision"
+        },
+        {
+          "feature_id": "TC-018",
+          "feature_name": "Explicit CSAM reporting workflow",
+          "feature_description": "Mandatory CSAM detection and reporting system per 18 U.S.C. § 2258A requirements. Automatically reports suspected child sexual abuse material to National Center for Missing & Exploited Children within legally required timeframe. EchoTrace audit logs maintained.",
+          "expected_decision": "YES",
+          "expected_regulations": ["US-NCMEC"],
+          "expected_control_type": ["reporting"],
+          "test_reasoning": "Explicit legal citation and clear NCMEC reporting should yield high confidence"
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "total_cases": 18,
+    "categories": 9,
+    "expected_distribution": {
+      "YES": 11,
+      "NO": 4,
+      "REVIEW": 3
+    },
+    "regulation_coverage": {
+      "DSA": 5,
+      "CA-SB976": 3,
+      "FL-Minors": 2,
+      "UT-SMRA": 3,
+      "US-NCMEC": 2
+    },
+    "control_type_coverage": {
+      "age_gating": 8,
+      "parental_consent": 3,
+      "reporting": 4,
+      "content_restriction": 5,
+      "data_localization": 2,
+      "data_retention": 4,
+      "notice_and_action": 2
+    },
+    "jargon_terms_tested": [
+      "ASL", "Jellybean", "Snowcap", "DRT", "GH", "LCP", "PF", "FR", "Spanner",
+      "EchoTrace", "NR", "CDS", "IMT", "Redline", "Softblock", "Glow", "T5", "NSP", "BB"
+    ],
+    "test_objectives": [
+      "Validate positive case detection with clear legal signals",
+      "Test negative case identification for business geofencing",
+      "Check ambiguous case handling and REVIEW decision logic",
+      "Verify jargon expansion and terminology understanding",
+      "Test edge cases with mixed business/legal signals", 
+      "Validate confidence scoring and evidence extraction",
+      "Check multi-regulation and multi-control-type scenarios",
+      "Test false positive resistance with misleading terminology"
+    ]
+  }
+}

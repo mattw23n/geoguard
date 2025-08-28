@@ -1,0 +1,18 @@
+Key Testing Dimensions Covered:
+
+Clear Legal Cases - Test obvious compliance requirements with proper legal citations
+Business Geofencing - Ensure A/B tests and market experiments are correctly classified as "NO"
+Ambiguous Scenarios - Cases that should trigger "REVIEW" due to missing context
+Edge Cases - Mixed signals that require careful analysis
+Jargon Recognition - Heavy use of your internal terminology to test glossary expansion
+False Positive Traps - Cases designed to catch over-classification
+Geographic Complexity - Multi-jurisdiction scenarios
+Confidence Testing - Cases to validate your confidence scoring
+
+Strategic Test Design Features:
+
+All 19 jargon terms from your terminology.yaml are represented
+All 5 regulations are covered with realistic scenarios
+All 7 control types are tested in various combinations
+Expected distribution: 11 YES, 4 NO, 3 REVIEW (realistic for production data)
+Evidence extraction opportunities with clear quotes for both feature and regulation snippets
