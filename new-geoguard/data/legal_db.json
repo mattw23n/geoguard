@@ -1,0 +1,5 @@
+{
+  "GDPR_DATA_LOCALIZATION": "The General Data Protection Regulation (GDPR) stipulates that for EU citizens, personal data may need to be stored and processed within the EU. Features transferring EU user data outside this zone require specific legal compliance.",
+  "INDONESIA_CHILD_PROTECTION": "Indonesia's Child Protection Law requires online services to implement strict age verification gates for content deemed unsuitable for minors. Features displaying user-generated content must verify a user's age if they are in Indonesia.",
+  "FRANCE_COPYRIGHT": "French copyright law imposes strict rules on content distribution. Features that allow users to download or share content may need to block this functionality for users in France to comply with these rules."
+}
