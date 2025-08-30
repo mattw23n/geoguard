@@ -92,73 +92,6 @@ def _sev_class(sev: str) -> str:
     if s in ("medium", "med"): return "chip-sev-medium"
     return "chip-sev-low"
 
-def render_regulation_card(rule_id: str, legal_index: dict):
-    """Pretty card for a single regulation id using LEGAL_INDEX."""
-    r = legal_index.get(rule_id)
-    if not r:
-        st.info(f"`{rule_id}` (not found in legal_db)")
-        return
-    title = r.get("title", rule_id)
-    jur = r.get("jurisdiction", "unspecified")
-    sev = r.get("severity", "medium")
-    sev_cls = _sev_class(sev)
-    summary = r.get("summary") or r.get("description") or ""
-
-    with st.container():
-        st.markdown(
-            f"""
-<div class="rule-card">
-  <div class="rule-title">{title}</div>
-  <div class="chips">
-    <span class="chip chip-id">{rule_id}</span>
-    <span class="chip chip-jur">Jurisdiction: {jur}</span>
-    <span class="chip chip-sev {sev_cls}">Severity: {sev.title()}</span>
-  </div>
-  {'<div class="rule-summary">'+summary+'</div>' if summary else ''}
-</div>
-""",
-            unsafe_allow_html=True,
-        )
-
-def render_triggered_rule_card(rule: dict, legal_index: dict):
-    """Nicer layout for triggered_rules items with a verdict badge."""
-    rule_id = rule.get("rule_id", "Unknown")
-    verdict = (rule.get("verdict") or "unclear").lower()
-    explanation = rule.get("explanation", "")
-
-    meta = legal_index.get(rule_id, {})
-    title = meta.get("title", rule_id)
-    jur = meta.get("jurisdiction", "")
-    sev = meta.get("severity", "")
-    summary = meta.get("summary", "")
-
-    if verdict == "violated":
-        badge = '<span class="badge badge-violated">🚨 Violated</span>'
-    elif verdict == "not_applicable":
-        badge = '<span class="badge badge-na">✅ Not Applicable</span>'
-    else:
-        badge = f'<span class="badge badge-unclear">⚠️ {verdict.title()}</span>'
-
-    with st.container():
-        st.markdown(
-            f"""
-<div class="rule-card">
-  <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;">
-    <div class="rule-title">{title}</div>
-    <div>{badge}</div>
-  </div>
-  <div class="chips">
-    <span class="chip chip-id">{rule_id}</span>
-    {'<span class="chip chip-jur">Jurisdiction: '+jur+'</span>' if jur else ''}
-    {'<span class="chip chip-sev '+_sev_class(sev)+'">Severity: '+sev.title()+'</span>' if sev else ''}
-  </div>
-  {'<div class="rule-summary">'+summary+'</div>' if summary else ''}
-  {'<div style="margin-top:8px;"><b>Model Explanation:</b> '+explanation+'</div>' if explanation else ''}
-</div>
-""",
-            unsafe_allow_html=True,
-        )
-
 
 def _parse_scan_ts(scan):
     """Back-compat helper: parse timestamp_utc (preferred) or timestamp."""
@@ -271,7 +204,7 @@ def render_analysis_section(analysis):
             jur = rule.get("jurisdiction", "unspecified")
             sev = rule.get("severity", "medium")
             sev_cls = _sev_class(sev)
-            summary = rule.get("summary") or rule.get("description") or ""
+            human_summary = rule.get("human_summary") or rule.get("description") or ""
 
             with st.container(border=True):
                 st.markdown(
@@ -283,7 +216,8 @@ def render_analysis_section(analysis):
         <span class="chip chip-jur">Jurisdiction: {jur}</span>
         <span class="chip chip-sev {sev_cls}">Severity: {sev.title()}</span>
     </div>
-    {'<div class="rule-summary">'+summary+'</div>' if summary else ''}
+    {'<div class="rule-summary">'+human_summary+'</div>' if human_summary else ''}
+    {'<div style="margin-top:8px;"><a href="'+rule.get("link", "#")+'" target="_blank">Read Full Text</a></div>' if rule.get("link") else ''}
     </div>
     """,
                     unsafe_allow_html=True,
