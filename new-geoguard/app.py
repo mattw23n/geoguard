@@ -11,10 +11,10 @@ from src.db_utils import (
     add_scan,
     get_scans_for_feature,
     get_all_legal_rules,
-    delete_features
+    delete_features,
+    add_or_update_legal_rule,
+    delete_legal_rules
 )
-
-LEGAL_DB_PATH = os.getenv("LEGAL_DB_PATH", os.path.join("data", "legal_db.json"))
 
 @st.cache_data(show_spinner=False)
 def load_legal_index() -> dict:
@@ -82,6 +82,8 @@ if "selected_feature_ids" not in st.session_state:
     st.session_state.selected_feature_ids = set()
 if "select_all" not in st.session_state:
     st.session_state.select_all = False
+if "rule_to_edit" not in st.session_state:
+    st.session_state.rule_to_edit = None
     
 def _sev_class(sev: str) -> str:
     s = (sev or "").lower()
@@ -402,6 +404,86 @@ def render_feature_snapshot(snapshot, key_prefix: str = "snapshot"):
         else:
             st.code(trd if trd else "None")
 
+def render_settings_view():
+    """Renders the page for managing legal rules."""
+    st.title("⚙️ Settings: Manage Legal Rules")
+
+    if st.button("← Back to Dashboard"):
+        st.session_state.view = "list"
+        st.session_state.rule_to_edit = None
+        st.rerun()
+
+    st.markdown("---")
+
+    # --- Form to Add or Edit a Rule ---
+    st.subheader("➕ Add or Update a Legal Rule")
+
+    # If a rule is being edited, load its data. Otherwise, start with a blank slate.
+    editing_rule = st.session_state.rule_to_edit or {}
+
+    with st.form(key="rule_form", clear_on_submit=True):
+        st.markdown("##### Core Information")
+        rule_id = st.text_input("Rule ID (e.g., `us_coppa`)", value=editing_rule.get("id", "")).strip()
+        title = st.text_input("Title", value=editing_rule.get("title", ""))
+        jurisdiction = st.text_input("Jurisdiction (e.g., `USA`, `EU`)", value=editing_rule.get("jurisdiction", ""))
+        severity = st.selectbox("Severity", ["Low", "Medium", "High", "Critical"], index=["Low", "Medium", "High", "Critical"].index(editing_rule.get("severity", "Medium").title()))
+        link = st.text_input("Link to Full Text", value=editing_rule.get("link", ""), placeholder="https://...")
+
+        st.markdown("##### Summaries & Keywords")
+        summary = st.text_area("AI Summary (for analysis)", value=editing_rule.get("summary", ""), height=100)
+        human_summary = st.text_area("Human-legible Summary", value=editing_rule.get("human_summary", ""), height=100)
+
+        submitted = st.form_submit_button("💾 Save Rule", type="primary")
+
+        if submitted:
+            if not all([rule_id, title, jurisdiction, severity, summary, human_summary]):
+                st.error("Please fill in all required fields.")
+            else:
+                rule_details = {
+                    "id": rule_id,
+                    "title": title,
+                    "jurisdiction": jurisdiction,
+                    "severity": severity.lower(),
+                    "summary": summary,
+                    "human_summary": human_summary,
+                    "link": link,
+                }
+                add_or_update_legal_rule(rule_details)
+                st.success(f"✅ Rule '{rule_id}' saved successfully!")
+                st.session_state.rule_to_edit = None # Clear editing state
+                st.cache_data.clear() # Clear the legal index cache
+                st.rerun()
+
+    if st.session_state.rule_to_edit:
+        if st.button("Cancel Editing"):
+            st.session_state.rule_to_edit = None
+            st.rerun()
+
+    st.markdown("---")
+
+    # --- List of Existing Rules ---
+    st.subheader("⚖️ Existing Legal Rules")
+    all_rules = get_all_legal_rules()
+
+    if not all_rules:
+        st.info("No legal rules found in the database. Add your first one above!")
+    else:
+        for rule in all_rules:
+            with st.container(border=True):
+                col1, col2, col3 = st.columns([4, 1, 1])
+                with col1:
+                    st.markdown(f"**{rule.get('title', 'No Title')}** (`{rule.get('id')}`)")
+                    st.caption(f"Jurisdiction: {rule.get('jurisdiction')} | Severity: {rule.get('severity', 'N/A').title()}")
+                with col2:
+                    if st.button("✏️ Edit", key=f"edit_{rule['id']}", use_container_width=True):
+                        st.session_state.rule_to_edit = rule
+                        st.rerun()
+                with col3:
+                    if st.button("🗑️ Delete", key=f"del_{rule['id']}", type="secondary", use_container_width=True):
+                        delete_legal_rules([rule['id']])
+                        st.success(f"🗑️ Rule '{rule['id']}' deleted.")
+                        st.cache_data.clear() # Clear the legal index cache
+                        st.rerun()
 
 # ==============================================================================
 #                           RENDER BATCH UPLOAD VIEW
@@ -498,6 +580,7 @@ def render_batch_upload_view():
             with col2:
                 st.markdown("**Import Summary:**")
                 st.info(f"• {len(df)} features ready to import\n• Duplicates will be skipped\n• All features will be saved to database")
+
 
 
 # ==============================================================================
@@ -754,7 +837,9 @@ def render_list_view():
             st.session_state.view = "batch_upload"
             st.rerun()
     with button_col3:
-        st.markdown("")
+        if st.button("⚙️ Manage Legal Rules", use_container_width=True):
+            st.session_state.view = "settings"
+            st.rerun()
 
     st.divider()
 
@@ -974,3 +1059,5 @@ elif st.session_state.view == "detail":
     render_detail_view()
 elif st.session_state.view == "batch_upload":
     render_batch_upload_view()
+elif st.session_state.view == "settings":
+    render_settings_view()
