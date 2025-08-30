@@ -13,4 +13,4 @@ venv/
 .idea/
 
 # Runtime Data
-data/database.json
+data/database.jsonvenv/
