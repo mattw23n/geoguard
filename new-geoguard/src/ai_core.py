@@ -480,8 +480,6 @@ def parse_llm_response(response_text: str) -> Dict[str, Any]:
     LEGAL_ACRONYMS = r"\b(GDPR|CCPA|CPRA|COPPA|HIPAA|PIPEDA|AADC|DMA|DSA|FERPA|LGPD|PDPA)\b"
     #    - bill patterns like SB-123, SB 123, HB 5678, AB 34
     BILL_PATTERN = r"\b(?:SB|HB|AB|LB)\s?-?\s?\d{2,5}\b"
-    # #    - generic 'Act|Regulation|Code|Directive' when paired with a proper noun before it
-    # GENERIC_LAW = r"\b([A-Z][a-z]+(?:\s[A-Z][a-z]+){0,4})\s(?:Act|Regulation|Code|Directive)\b"
 
     external_hits = []
     for pat in (LEGAL_ACRONYMS, BILL_PATTERN):
