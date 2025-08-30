@@ -129,3 +129,12 @@ def get_scans_for_feature(feature_id: str) -> List[Dict[str, Any]]:
     except Exception as e:
         print(f"Error fetching scans for feature {feature_id}: {e}")
         return []
+    
+def get_all_legal_rules() -> List[Dict[str, Any]]:
+    """Fetches all legal rules from the database."""
+    try:
+        response = supabase.table("laws").select("*").execute()
+        return response.data
+    except Exception as e:
+        print(f"Error fetching legal rules: {e}")
+        return []
