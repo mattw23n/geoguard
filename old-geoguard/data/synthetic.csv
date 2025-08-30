@@ -1,4 +1,0 @@
-feature_id,feature_name,feature_description
-F-001,Curfew login blocker with ASL,To comply with the Utah Social Media Regulation Act, we implement a curfew-based login restriction for minors.
-F-002,South Korea dark theme A/B experiment,A/B test dark theme accessibility for users in South Korea. Rollout is limited via GH and monitored with FR flags.
-F-003,A video filter available globally except KR,Feature is available in all regions except Korea; no legal rationale stated.
