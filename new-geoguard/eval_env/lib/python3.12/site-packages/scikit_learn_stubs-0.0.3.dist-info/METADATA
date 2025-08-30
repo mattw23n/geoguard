@@ -1,0 +1,33 @@
+Metadata-Version: 2.3
+Name: scikit-learn-stubs
+Version: 0.0.3
+Summary: scikit-learn stubs from the Microsoft python-type-stubs repository
+Keywords: scikit-learn,sklearn,stubs
+Author: Bagard Hoel
+License: MIT
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Programming Language :: Python
+Classifier: Programming Language :: Python :: 3.9
+Classifier: Programming Language :: Python :: 3.10
+Classifier: Programming Language :: Python :: 3.11
+Classifier: Programming Language :: Python :: 3.12
+Classifier: Programming Language :: Python :: 3.13
+Classifier: Programming Language :: Python :: Implementation :: CPython
+Classifier: Operating System :: OS Independent
+Classifier: Intended Audience :: Developers
+Requires-Python: >=3.9
+Project-URL: Bug Tracker, https://github.com/hoel-bagard/scikit-learn-stubs/issues
+Project-URL: Homepage, https://github.com/hoel-bagard/scikit-learn-stubs
+Description-Content-Type: text/markdown
+
+# scikit-learn Stubs
+
+This repository simply publishes the stubs from [Microsoft's Python Type Stubs repository](https://github.com/microsoft/python-type-stubs) to PyPI.
+
+I made this package because of a specific issue at work, in general you can simply install the stubs by following [the instructions](https://github.com/microsoft/python-type-stubs?tab=readme-ov-file#installing-our-stubs) given in the Microsoft repository.
+
+## Installation
+
+```bash
+pip install scikit-learn-stubs
+```
