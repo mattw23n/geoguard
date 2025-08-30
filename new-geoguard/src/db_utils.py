@@ -108,7 +108,7 @@ def add_scan(
         allowed_keys = {
             "audit_id", "status", "model", "raw_output_hash",
             "legal_db_fingerprint", "rules_context_ids",
-            "rules_context_fingerprint", "prompt_included", "context_text_included",
+            "rules_context_fingerprint", "prompt_included", "context_text_included", "prompt_snapshot", "context_snapshot",
         }
         scan_entry["audit"] = {k: v for k, v in audit_meta.items() if k in allowed_keys}
 
