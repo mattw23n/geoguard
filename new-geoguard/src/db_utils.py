@@ -42,6 +42,25 @@ def add_or_update_feature(db_data, feature_details):
         return feature_id
     return None
 
+def delete_features(db_data, feature_ids):
+    """Deletes multiple features and their associated scans from the database."""
+    if not feature_ids:
+        return 0
+    
+    # Convert to set for faster lookup
+    ids_to_delete = set(feature_ids)
+    
+    # Remove features
+    original_feature_count = len(db_data["features"])
+    db_data["features"] = [f for f in db_data["features"] if f["id"] not in ids_to_delete]
+    deleted_feature_count = original_feature_count - len(db_data["features"])
+    
+    # Remove associated scans
+    original_scan_count = len(db_data["scans"])
+    db_data["scans"] = [s for s in db_data["scans"] if s["feature_id"] not in ids_to_delete]
+    deleted_scan_count = original_scan_count - len(db_data["scans"])
+    
+    return deleted_feature_count, deleted_scan_count
 
 def add_scan(db_data, feature_id, feature_snapshot, analysis):
     """Adds a new scan result to the database."""

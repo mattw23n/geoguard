@@ -9,6 +9,7 @@ from src.db_utils import (
     add_or_update_feature,
     add_scan,
     get_scans_for_feature,
+    delete_features
 )
 
 # --- Page Configuration ---
@@ -78,6 +79,10 @@ if "view" not in st.session_state:
     st.session_state.view = "list"  # 'list', 'detail', or 'batch_upload'
 if "selected_feature_id" not in st.session_state:
     st.session_state.selected_feature_id = None
+if "selected_feature_ids" not in st.session_state:
+    st.session_state.selected_feature_ids = set()
+if "select_all" not in st.session_state:
+    st.session_state.select_all = False
 
 
 def extract_text_from_file(uploaded_file):
@@ -160,12 +165,18 @@ def render_classification_badge(classification):
 
 
 def render_analysis_section(analysis):
-    """Renders the AI analysis in a human-readable format"""
+    """Renders the AI analysis in a human-readable format with all available fields"""
     classification = analysis.get('classification', 'N/A')
     
     # Classification with appropriate styling
     st.subheader("📊 Risk Assessment")
     render_classification_badge(classification)
+    
+    # Add confidence score if available
+    confidence = analysis.get('confidence')
+    if confidence is not None:
+        confidence_percentage = int(confidence * 100) if isinstance(confidence, float) else confidence
+        st.markdown(f"**Confidence Level:** {confidence_percentage}%")
     
     # Reasoning section
     reasoning = analysis.get("reasoning", "No reasoning provided.")
@@ -178,6 +189,34 @@ def render_analysis_section(analysis):
     if regulation and regulation.strip():
         st.subheader("📋 Relevant Regulations")
         st.info(regulation)
+    
+    # Triggered rules (new section)
+    triggered_rules = analysis.get("triggered_rules", [])
+    if triggered_rules:
+        st.subheader("⚖️ Triggered Compliance Rules")
+        for rule in triggered_rules:
+            with st.container(border=True):
+                if isinstance(rule, dict):
+                    # If rule is a dictionary with detailed info
+                    rule_id = rule.get('rule_id', 'Unknown Rule')
+                    verdict = rule.get('verdict', 'N/A')
+                    explanation = rule.get('explanation', 'No explanation provided')
+                    
+                    # Color code based on verdict
+                    if verdict == "violated":
+                        st.error(f"**Rule ID:** {rule_id}")
+                        st.markdown(f"**Verdict:** 🚨 Violated")
+                    elif verdict == "compliant":
+                        st.success(f"**Rule ID:** {rule_id}")
+                        st.markdown(f"**Verdict:** ✅ Compliant")
+                    else:
+                        st.warning(f"**Rule ID:** {rule_id}")
+                        st.markdown(f"**Verdict:** ⚠️ {verdict}")
+                    
+                    st.markdown(f"**Explanation:** {explanation}")
+                else:
+                    # If rule is just a string
+                    st.markdown(f"• {rule}")
     
     # Risk factors if available
     risk_factors = analysis.get("risk_factors", [])
@@ -192,6 +231,10 @@ def render_analysis_section(analysis):
         st.subheader("💡 Recommendations")
         for rec in recommendations:
             st.markdown(f"• {rec}")
+    
+    # Raw analysis data (collapsible for debugging)
+    with st.expander("🔍 Raw Analysis Data (Debug)", expanded=False):
+        st.json(analysis)
 
 
 def render_feature_snapshot(snapshot):
@@ -316,9 +359,14 @@ def render_batch_upload_view():
                     status_text.empty()
                     progress_bar.empty()
                     st.success(f"🎉 Successfully imported {imported_count} features!")
-                    
-                    if st.button("View Dashboard"):
+                    st.session_state.import_completed = True
+                    st.rerun()
+
+                # Show "View Dashboard" button after import is completed
+                if getattr(st.session_state, 'import_completed', False):
+                    if st.button("📊 View Dashboard", type="secondary", use_container_width=True):
                         st.session_state.view = "list"
+                        st.session_state.import_completed = False  # Reset the flag
                         st.rerun()
             
             with col2:
@@ -567,6 +615,7 @@ def render_detail_view():
 # ==============================================================================
 #                               RENDER LIST VIEW
 # ==============================================================================
+
 def render_list_view():
     """Renders the home screen with a list of all created features."""
     
@@ -666,63 +715,149 @@ def render_list_view():
                         filtered_by_status.append(feature)
             filtered_features = filtered_by_status
         
-        # Features list with improved styling
-        st.markdown(f"### 🗂️ Features ({len(filtered_features)} of {len(features)})")
-        
-        if not filtered_features:
-            st.info("No features match your current filters.")
-        else:
-            for feature in filtered_features:
-                # Get latest scan info for this feature
-                feature_scans = get_scans_for_feature(db, feature["id"])
-                latest_classification = "Not Scanned"
-                last_scan_date = "Never"
+        # Selection and Delete Controls
+        if filtered_features:
+            st.markdown("### 🗂️ Feature Management")
+            
+            # Selection controls
+            select_col1, select_col2, select_col3, select_col4 = st.columns([1, 1, 1, 1])
+            
+            with select_col1:
+                # Select All checkbox
+                select_all = st.checkbox(
+                    "Select All", 
+                    value=st.session_state.select_all,
+                    key="select_all_checkbox"
+                )
                 
-                if feature_scans:
-                    latest_scan = feature_scans[0]
-                    latest_classification = latest_scan['analysis'].get('classification', 'N/A')
-                    last_scan_date = datetime.fromisoformat(latest_scan["timestamp"]).strftime("%m/%d/%Y")
-                
-                # Status indicators
-                if latest_classification == "YES":
-                    status_emoji = "🚨"
-                    status_text = "High Risk"
-                elif latest_classification == "NO":
-                    status_emoji = "✅"
-                    status_text = "Compliant"
-                elif latest_classification == "UNSURE":
-                    status_emoji = "⚠️"
-                    status_text = "Needs Review"
-                else:
-                    status_emoji = "❓"
-                    status_text = "Not Scanned"
-                
+                # Update selection when select all changes
+                if select_all != st.session_state.select_all:
+                    st.session_state.select_all = select_all
+                    if select_all:
+                        st.session_state.selected_feature_ids = {f["id"] for f in filtered_features}
+                    else:
+                        st.session_state.selected_feature_ids = set()
+                    st.rerun()
+            
+            selected_count = len(st.session_state.selected_feature_ids)
+            
+            with select_col3:
+                if st.button("🗑️ Clear Selection", disabled=selected_count == 0):
+                    st.session_state.selected_feature_ids = set()
+                    st.session_state.select_all = False
+                    st.rerun()
+            
+            with select_col4:
+                if st.button(
+                    f"🗑️ Delete Selected ({selected_count})", 
+                    type="secondary",
+                    disabled=selected_count == 0,
+                    use_container_width=True
+                ):
+                    # Confirmation dialog using session state
+                    st.session_state.show_delete_confirmation = True
+                    st.rerun()
+            
+            # Delete confirmation dialog
+            if getattr(st.session_state, 'show_delete_confirmation', False):
                 with st.container(border=True):
-                    row_col1, row_col2, row_col3, row_col4 = st.columns([3, 2, 2, 1])
+                    st.error("⚠️ **Confirm Deletion**")
+                    st.markdown(f"Are you sure you want to delete {selected_count} selected feature(s)? This action cannot be undone and will also delete all associated compliance scans.")
                     
-                    with row_col1:
-                        st.markdown(f"**{feature['title']}**")
-                        description_preview = feature.get('description', '')
-                        if len(description_preview) > 100:
-                            description_preview = description_preview[:100] + "..."
-                        st.caption(description_preview if description_preview else "No description")
-                    
-                    with row_col2:
-                        st.markdown(f"{status_emoji} **{status_text}**")
-                        st.caption(f"ID: {feature['id']}")
-                    
-                    with row_col3:
-                        st.markdown("**Last Scan:**")
-                        st.caption(last_scan_date)
-                        if feature_scans:
-                            st.caption(f"({len(feature_scans)} total scans)")
-                    
-                    with row_col4:
-                        if st.button("View →", key=f"view_{feature['id']}", use_container_width=True):
-                            st.session_state.selected_feature_id = feature["id"]
-                            st.session_state.view = "detail"
+                    confirm_col1, confirm_col2 = st.columns(2)
+                    with confirm_col1:
+                        if st.button("✅ Yes, Delete", type="primary", use_container_width=True):
+                            deleted_features, deleted_scans = delete_features(db, list(st.session_state.selected_feature_ids))
+                            save_database(db)
+                            st.session_state.selected_feature_ids = set()
+                            st.session_state.select_all = False
+                            st.session_state.show_delete_confirmation = False
+                            st.success(f"🗑️ Deleted {deleted_features} features and {deleted_scans} associated scans")
                             st.rerun()
-
+                    
+                    with confirm_col2:
+                        if st.button("❌ Cancel", use_container_width=True):
+                            st.session_state.show_delete_confirmation = False
+                            st.rerun()
+            
+            st.divider()
+        
+        # Features list with checkboxes
+        st.markdown(f"### 📋 Features ({len(filtered_features)} of {len(features)})")
+        
+        for feature in filtered_features:
+            # Get latest scan info for this feature
+            feature_scans = get_scans_for_feature(db, feature["id"])
+            latest_classification = "Not Scanned"
+            last_scan_date = "Never"
+            
+            if feature_scans:
+                latest_scan = feature_scans[0]
+                latest_classification = latest_scan['analysis'].get('classification', 'N/A')
+                last_scan_date = datetime.fromisoformat(latest_scan["timestamp"]).strftime("%m/%d/%Y")
+            
+            # Status indicators
+            if latest_classification == "YES":
+                status_emoji = "🚨"
+                status_text = "High Risk"
+            elif latest_classification == "NO":
+                status_emoji = "✅"
+                status_text = "Compliant"
+            elif latest_classification == "UNSURE":
+                status_emoji = "⚠️"
+                status_text = "Needs Review"
+            else:
+                status_emoji = "❓"
+                status_text = "Not Scanned"
+            
+            with st.container(border=True):
+                row_col1, row_col2, row_col3, row_col4, row_col5 = st.columns([0.5, 2.5, 2, 2, 1])
+                
+                with row_col1:
+                    # Individual checkbox for each feature
+                    is_selected = feature["id"] in st.session_state.selected_feature_ids
+                    checkbox_changed = st.checkbox(
+                        "", 
+                        value=is_selected,
+                        key=f"select_{feature['id']}"
+                    )
+                    
+                    # Update selection when individual checkbox changes
+                    if checkbox_changed != is_selected:
+                        if checkbox_changed:
+                            st.session_state.selected_feature_ids.add(feature["id"])
+                        else:
+                            st.session_state.selected_feature_ids.discard(feature["id"])
+                        
+                        # Update select all state
+                        if len(st.session_state.selected_feature_ids) == len(filtered_features):
+                            st.session_state.select_all = True
+                        else:
+                            st.session_state.select_all = False
+                        st.rerun()
+                
+                with row_col2:
+                    st.markdown(f"**{feature['title']}**")
+                    description_preview = feature.get('description', '')
+                    if len(description_preview) > 100:
+                        description_preview = description_preview[:100] + "..."
+                    st.caption(description_preview if description_preview else "No description")
+                
+                with row_col3:
+                    st.markdown(f"{status_emoji} **{status_text}**")
+                    st.caption(f"ID: {feature['id']}")
+                
+                with row_col4:
+                    st.markdown("**Last Scan:**")
+                    st.caption(last_scan_date)
+                    if feature_scans:
+                        st.caption(f"({len(feature_scans)} total scans)")
+                
+                with row_col5:
+                    if st.button("View →", key=f"view_{feature['id']}", use_container_width=True):
+                        st.session_state.selected_feature_id = feature["id"]
+                        st.session_state.view = "detail"
+                        st.rerun()
 
 # ==============================================================================
 #                                 MAIN ROUTER
