@@ -818,7 +818,7 @@ def render_list_view():
         for feature in features:
             feature_scans = get_scans_for_feature(feature["id"])
             total_scans += len(feature_scans)
-            if feature_scans and feature_scans[0]['analysis'].get('classification') == 'YES':
+            if feature_scans and feature_scans[0]['analysis']['classification'] == 'YES':
                 high_risk_features += 1
 
         st.markdown("### 📊 Dashboard Overview")
