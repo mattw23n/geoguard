@@ -8,6 +8,8 @@ import uuid
 import hashlib
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
+from .db_utils import get_all_legal_rules
+
 
 from dotenv import load_dotenv
 import google.generativeai as genai
@@ -109,21 +111,7 @@ def _normalize_rule(obj_key: str, value: Any) -> Optional[Dict[str, Any]]:
     return value
 
 def _load_legal_context() -> List[Dict[str, Any]]:
-    try:
-        with open(LEGAL_DB_PATH, "r", encoding="utf-8") as f:
-            data = json.load(f)
-    except Exception:
-        return []
-    rules: List[Dict[str, Any]] = []
-    if isinstance(data, dict):
-        for k, v in data.items():
-            rule = _normalize_rule(str(k), v)
-            if rule: rules.append(rule)
-    elif isinstance(data, list):
-        for i, v in enumerate(data):
-            rule = _normalize_rule(str(v.get("id") or f"rule_{i}"), v)
-            if rule: rules.append(rule)
-    return rules
+    return get_all_legal_rules()
 
 def _score_rule(rule: Dict[str, Any], text_lc: str) -> float:
     hits = 0

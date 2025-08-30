@@ -10,43 +10,26 @@ from src.db_utils import (
     add_or_update_feature,
     add_scan,
     get_scans_for_feature,
+    get_all_legal_rules,
     delete_features
 )
 
 LEGAL_DB_PATH = os.getenv("LEGAL_DB_PATH", os.path.join("data", "legal_db.json"))
 
 @st.cache_data(show_spinner=False)
-def load_legal_index(path: str = LEGAL_DB_PATH) -> dict:
-    """Load legal_db.json and index it by rule id. Handles dict or list shapes."""
-    try:
-        with open(path, "r", encoding="utf-8") as f:
-            data = json.load(f)
-    except Exception:
+def load_legal_index() -> dict:
+    """Load legal rules from Supabase and index them by rule id."""
+    data = get_all_legal_rules()
+    if not data:
         return {}
 
     idx = {}
-    if isinstance(data, list):
-        for entry in data:
-            if not isinstance(entry, dict):
-                continue
-            rid = str(entry.get("id") or entry.get("rule_id") or "").strip()
-            if rid:
-                e = dict(entry)
-                e.setdefault("id", rid)
-                idx[rid] = e
-    elif isinstance(data, dict):
-        for k, v in data.items():
-            if isinstance(v, dict):
-                rid = str(v.get("id") or k).strip()
-                e = dict(v)
-                e.setdefault("id", rid)
-                e.setdefault("title", str(k).replace("_", " ").title())
-                idx[rid] = e
-            else:
-                # primitive value → treat as summary
-                rid = str(k).strip()
-                idx[rid] = {"id": rid, "title": str(k), "jurisdiction": "unspecified",
-                            "severity": "medium", "summary": str(v)}
+    for entry in data:
+        if not isinstance(entry, dict):
+            continue
+        rid = str(entry.get("id") or "").strip()
+        if rid:
+            idx[rid] = dict(entry)
     return idx
 
 LEGAL_INDEX = load_legal_index()
