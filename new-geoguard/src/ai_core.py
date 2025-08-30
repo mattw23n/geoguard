@@ -197,8 +197,10 @@ def _prepare_feature_text(feature_text: str,
 
 # ============================ Prompt ================================
 def _build_master_prompt(feature_text_normalized: str, rules: List[Dict[str, Any]]) -> str:
-    allowed_ids = ", ".join([str(r.get("id", "")) for r in rules if r.get("id")]) or "None"
+    allowed_ids = [str(r.get("id", "")) for r in rules if r.get("id")]
+    allowed_ids_csv = ", ".join(allowed_ids) if allowed_ids else "None"
     context_text = _context_block(rules)
+
     return f"""
 You are a legal compliance analysis AI for a global tech company.
 
@@ -209,7 +211,7 @@ STRICT CONSTRAINTS (follow exactly):
 1) You **MUST** base your reasoning and any regulation citation **ONLY** on the "REFERENCE LEGAL CONTEXT" below.
 2) You **MUST NOT** invent or reference any law/regulation that is not present in the "REFERENCE LEGAL CONTEXT".
 3) If the feature artifacts **explicitly mention** a law/regulation that is **NOT** present in the context, your classification **MUST** be "UNSURE".
-   Your reasoning **MUST** state that a potential legal requirement was found but is not in your knowledge base.
+   Your reasoning **MUST** state that a potential legal requirement was found but is not in your knowledge base **without naming it**.
 
 LOCATION → JURISDICTION APPLICATION (do this within your reasoning):
 A) Identify the **implementation location** of the feature (where it is deployed/hosted/rolled out). Prefer explicit statements such as
@@ -224,11 +226,21 @@ D) If **no implementation location is stated**, your classification **MUST** be 
 E) If a location is stated but **no matching rule** exists in the reference context, classification **MUST** be "UNSURE" with "regulation":"None"
    and reasoning noting that the relevant jurisdiction is not represented in the context.
 
+BUSINESS-DECISION HEURISTIC (apply before citing any rule):
+- If the feature is **only** a market-availability / rollout gate (e.g., "market testing", "US-only access", geofence-based availability)
+  and the description **does not** state any of the following:
+  (i) collection/retention of precise location or other personal data,
+  (ii) targeted advertising, profiling, or geofence-triggered messaging,
+  (iii) handling of user-generated content or content moderation duties,
+  (iv) impacts on children/minors,
+  then classify **"NO"**. Set "regulation" to **"None"**. In your reasoning, clearly state this is a **business rollout decision** rather than a legal requirement.
+- Only if the description **does** state one of (i)–(iv) should you consider applicable rules for the declared jurisdiction(s).
+
 CITATION RULES:
-- When you cite a rule, use its **id** exactly as given. The only valid ids are: {allowed_ids}.
-- Mention **only rules you cite** in "regulation" or "triggered_rules". Do **not** list other rules in the reasoning.
-- In your "reasoning", do not mention any law name, code, bill number, or acronym that is not in the REFERENCE LEGAL CONTEXT. 
-- If you would otherwise need to reference one (e.g., "GDPR", "SB-976"), you MUST return "UNSURE" and explain that the relevant law is outside the reference context.
+- Valid rule ids: {allowed_ids_csv}
+- When you cite a rule, use its **id** exactly as given.
+- Do **not** restate or enumerate the entire REFERENCE LEGAL CONTEXT in your reasoning.
+- Mention **only** rules you actually cite in "regulation" or "triggered_rules".
 
 REFERENCE LEGAL CONTEXT:
 {context_text}
@@ -236,13 +248,22 @@ REFERENCE LEGAL CONTEXT:
 FEATURE ARTIFACTS TO ANALYZE (terminology expanded inline):
 {feature_text_normalized}
 
-Return ONLY a single valid JSON object with these keys:
+### OUTPUT FORMAT
+Return **only** a single valid JSON object with these keys:
 - "classification": "YES" | "NO" | "UNSURE"
 - "reasoning": plain-English rationale focused on the implementation location and rule applicability
 - "regulation": one allowed rule id from the context above OR "None"
-Optional (include when helpful):
-- "triggered_rules": array of {{ "rule_id": <allowed id>, "verdict": "violated"|"not_applicable"|"unclear", "explanation": str }}
-- "recommendations": array of short, actionable suggestions
+Optional:
+- "triggered_rules": [ {{ "rule_id": <allowed id>, "verdict": "violated"|"not_applicable"|"unclear", "explanation": str }} ]
+- "recommendations": [ str, ... ]
+
+### FINAL SELF-CHECK (must pass before you output)
+- If the feature is only a market-availability toggle and none of (i)–(iv) are stated, the output is **"classification":"NO", "regulation":"None"**.
+- The reasoning does **not** list or enumerate the REFERENCE LEGAL CONTEXT (no phrases like "the reference context includes ...").
+- The reasoning has **no dangling fragments** such as "The reference ..." and is grammatically complete.
+- The reasoning does **not** mention any law name, acronym, bill number, or code **outside** the allowed ids above.
+  If you needed an external law, switch to **"UNSURE"** and state the law is outside the provided context **without naming it**.
+- The JSON has **no extra text**, no trailing commas, and all strings are complete sentences.
 """.strip()
 
 
@@ -459,11 +480,11 @@ def parse_llm_response(response_text: str) -> Dict[str, Any]:
     LEGAL_ACRONYMS = r"\b(GDPR|CCPA|CPRA|COPPA|HIPAA|PIPEDA|AADC|DMA|DSA|FERPA|LGPD|PDPA)\b"
     #    - bill patterns like SB-123, SB 123, HB 5678, AB 34
     BILL_PATTERN = r"\b(?:SB|HB|AB|LB)\s?-?\s?\d{2,5}\b"
-    #    - generic 'Act|Regulation|Code|Directive' when paired with a proper noun before it
-    GENERIC_LAW = r"\b([A-Z][a-z]+(?:\s[A-Z][a-z]+){0,4})\s(?:Act|Regulation|Code|Directive)\b"
+    # #    - generic 'Act|Regulation|Code|Directive' when paired with a proper noun before it
+    # GENERIC_LAW = r"\b([A-Z][a-z]+(?:\s[A-Z][a-z]+){0,4})\s(?:Act|Regulation|Code|Directive)\b"
 
     external_hits = []
-    for pat in (LEGAL_ACRONYMS, BILL_PATTERN, GENERIC_LAW):
+    for pat in (LEGAL_ACRONYMS, BILL_PATTERN):
         for m in re.finditer(pat, reasoning):
             hit = m.group(0)
             # ignore if this hit corresponds to one of our allowed titles/ids
@@ -486,6 +507,16 @@ def parse_llm_response(response_text: str) -> Dict[str, Any]:
         extra_reason = (extra_reason + " External law reference(s) removed: "
                         f"{ext_list}. Not in reference context; set to UNSURE.").strip()
 
+    # Remove dangling "includes , , and ." or similar artifacts after ID scrubbing
+    reasoning = re.sub(
+        r"(?:reference\s+legal\s+context|context)\s+includes\s*(?:[,.\s]|and|or)+\.?",
+        "",
+        reasoning,
+        flags=re.IGNORECASE,
+    )
+    # Collapse stray comma runs/spaces left by removals
+    reasoning = re.sub(r"\s*,\s*,+", ", ", reasoning)
+    
     # 5) Normalize whitespace after removals
     reasoning = re.sub(r"\s{2,}", " ", reasoning).strip()
 
