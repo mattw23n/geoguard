@@ -402,6 +402,43 @@ def render_feature_snapshot(snapshot, key_prefix: str = "snapshot"):
         else:
             st.code(trd if trd else "None")
 
+def render_audit_tab(audit: dict, key_prefix: str = "audit") -> None:
+    audit = audit or {}
+    st.subheader("📑 Audit Details")
+
+    col1, col2 = st.columns(2)
+    with col1:
+        st.markdown("**Audit ID:**"); st.code(audit.get("audit_id", "—"))
+        st.markdown("**Status:**"); st.code(audit.get("status", "—"))
+        st.markdown("**Model:**"); st.code(audit.get("model", "—"))
+        st.markdown("**Prompt Included:**"); st.code(str(audit.get("prompt_included", False)))
+    with col2:
+        st.markdown("**Raw Output Hash:**"); st.code(audit.get("raw_output_hash", "—"))
+        st.markdown("**Legal DB Fingerprint:**"); st.code(audit.get("legal_db_fingerprint", "—"))
+        st.markdown("**Rules Context Fingerprint:**"); st.code(audit.get("rules_context_fingerprint", "—"))
+
+    rules_ids = audit.get("rules_context_ids") or []
+    st.markdown("**Rules Context IDs:**")
+    st.code(", ".join(rules_ids) if rules_ids else "—")
+
+    # --- Snapshots (no `key` supported on st.expander in your version) ---
+    snap_prompt = audit.get("prompt_snapshot")
+    snap_context = audit.get("context_snapshot")
+    if snap_prompt or snap_context:
+        st.markdown("---")
+        st.markdown("**Snapshots**")
+
+        # Make labels invisibly unique using a zero-width space + audit_id snippet
+        aid = (audit.get("audit_id") or "")[:8]
+        zws = "\u200B"  # zero-width space
+
+        if snap_prompt:
+            with st.expander(f"📝 Prompt Snapshot{zws}{aid}", expanded=False):
+                st.code(snap_prompt)
+
+        if snap_context:
+            with st.expander(f"📚 Context Snapshot{zws}{aid}", expanded=False):
+                st.code(snap_context)
 
 # ==============================================================================
 #                           RENDER BATCH UPLOAD VIEW
@@ -692,37 +729,23 @@ def render_detail_view():
 
                 with st.expander(f"{status_emoji} Scan #{scan_number} - {status_text} ({formatted_time})",
                                  expanded=(i == 0)):
-                    analysis_tab, snapshot_tab = st.tabs(["🔍 Analysis Results", "📸 Feature Snapshot"])
+                    analysis_tab, snapshot_tab, audit_tab = st.tabs(
+                        ["Analysis Results", "Feature Snapshot", "Audit Log"]
+                    )
 
                     with analysis_tab:
                         render_analysis_section(scan["analysis"])
-
-                        # --- AUDIT DETAILS DROPDOWN (all audit-related data lives here) ---
-                        audit = scan.get("audit") or {}
-                        with st.expander("📑 Audit Details", expanded=False):
-                            if not audit:
-                                st.caption("No audit metadata recorded for this scan.")
-                            else:
-                                left, right = st.columns(2)
-                                with left:
-                                    st.markdown(f"**Audit ID:** `{audit.get('audit_id', 'N/A')}`")
-                                    st.markdown(f"**Status:** `{audit.get('status', 'N/A')}`")
-                                    st.markdown(f"**Model:** `{audit.get('model', 'N/A')}`")
-                                    st.markdown(f"**Prompt Included:** `{audit.get('prompt_included', False)}`")
-                                with right:
-                                    st.markdown(f"**Raw Output Hash:** `{audit.get('raw_output_hash', 'N/A')}`")
-                                    st.markdown(f"**Legal DB Fingerprint:** `{audit.get('legal_db_fingerprint', 'N/A')}`")
-                                    st.markdown(f"**Rules Context Fingerprint:** `{audit.get('rules_context_fingerprint', 'N/A')}`")
-
-                                rules_ids = audit.get("rules_context_ids") or []
-                                if rules_ids:
-                                    st.markdown("**Rules Context IDs:**")
-                                    st.code(", ".join(rules_ids), language="text")
 
                     with snapshot_tab:
                         render_feature_snapshot(
                             scan["feature_snapshot"],
                             key_prefix=f"scan_{scan.get('scan_id', i)}"
+                        )
+
+                    with audit_tab:
+                        render_audit_tab(
+                            scan.get("audit") or {},
+                            key_prefix=f"audit_{scan.get('scan_id', i)}"
                         )
     else:
         st.info("💡 Save this feature to enable compliance scanning and view scan history.")
