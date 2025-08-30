@@ -57,6 +57,7 @@ Crucially, every scan is saved as an immutable snapshot, creating a persistent, 
 *   **`google-generativeai`**: The official Python SDK for the Gemini API.
 *   **`pandas`**: Used in our evaluation script to load and manage the test dataset.
 *   **`python-dotenv`**: For managing the API key securely in a local environment.
+*   **`supabase`**: The official Python client for interacting with the Supabase database.
 *   **`scikit-learn`**: Used in our evaluation script to generate a comprehensive classification report (accuracy, precision, recall, F1-score).
 
 #### Assets Used
@@ -143,7 +144,6 @@ geoguard-ai/
 ├── evaluate.py         # Standalone script for testing the LLM
 ├── requirements.txt
 ├── data/
-│   ├── database.json   # Local DB for features and scans
 │   ├── legal_db.json   # AI's knowledge base
 │   └── test_data.csv   # Ground truth for testing
 └── src/

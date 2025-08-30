@@ -5,8 +5,8 @@ import os
 from datetime import datetime, timezone
 from src.ai_core import get_ai_analysis, parse_llm_response, get_last_audit_meta
 from src.db_utils import (
-    load_database,
-    save_database,
+    get_all_features,
+    get_feature_by_id,
     add_or_update_feature,
     add_scan,
     get_scans_for_feature,
@@ -482,7 +482,6 @@ def render_batch_upload_view():
             col1, col2 = st.columns(2)
             with col1:
                 if st.button("📤 Import All Features", type="primary", use_container_width=True):
-                    db = load_database()
                     imported_count = 0
 
                     progress_bar = st.progress(0)
@@ -497,11 +496,10 @@ def render_batch_upload_view():
                             "prd": row['prd'],
                             "trd": row['trd'],
                         }
-                        add_or_update_feature(db, feature_details)
+                        add_or_update_feature(feature_details)
                         imported_count += 1
                         progress_bar.progress((index + 1) / len(df))
 
-                    save_database(db)
                     status_text.empty()
                     progress_bar.empty()
                     st.success(f"🎉 Successfully imported {imported_count} features!")
@@ -536,13 +534,9 @@ def render_detail_view():
     with col2:
         st.title("⚖️ Feature Analysis & Management")
 
-    db = load_database()
     current_feature = None
     if st.session_state.selected_feature_id:
-        for f in db["features"]:
-            if f["id"] == st.session_state.selected_feature_id:
-                current_feature = f
-                break
+        current_feature = get_feature_by_id(st.session_state.selected_feature_id)
 
     # --- Feature Details Form ---
     st.markdown("### 📝 Feature Information")
@@ -635,8 +629,7 @@ def render_detail_view():
                     "prd": prd_content,
                     "trd": trd_content,
                 }
-                new_id = add_or_update_feature(db, feature_details)
-                save_database(db)
+                new_id = add_or_update_feature(feature_details)
                 st.session_state.selected_feature_id = new_id
                 st.success(f"✅ Feature '{title}' saved successfully!")
                 st.rerun()
@@ -654,8 +647,8 @@ def render_detail_view():
                 # Minimal audit block from ai_core (no feature hashes/terminology paths)
                 audit_meta = get_last_audit_meta() or {}
 
-                add_scan(db, st.session_state.selected_feature_id, feature_snapshot, analysis, audit_meta=audit_meta)
-                save_database(db)
+                add_scan(st.session_state.selected_feature_id, feature_snapshot, analysis, audit_meta=audit_meta)
+                
                 st.success("✅ Compliance scan completed and saved!")
                 st.rerun()
 
@@ -668,7 +661,8 @@ def render_detail_view():
     st.markdown("### 📈 Compliance Scan History")
 
     if st.session_state.selected_feature_id:
-        feature_scans = get_scans_for_feature(db, st.session_state.selected_feature_id)
+        feature_scans = get_scans_for_feature(st.session_state.selected_feature_id)
+
 
         if not feature_scans:
             st.info("🔍 No compliance scans have been performed for this feature yet. Run your first scan above!")
@@ -781,8 +775,7 @@ def render_list_view():
 
     st.divider()
 
-    db = load_database()
-    features = db.get("features", [])
+    features = get_all_features()
 
     if not features:
         st.markdown("""
@@ -797,7 +790,7 @@ def render_list_view():
         total_scans = 0
         high_risk_features = 0
         for feature in features:
-            feature_scans = get_scans_for_feature(db, feature["id"])
+            feature_scans = get_scans_for_feature(feature["id"])
             total_scans += len(feature_scans)
             if feature_scans and feature_scans[0]['analysis'].get('classification') == 'YES':
                 high_risk_features += 1
@@ -832,7 +825,7 @@ def render_list_view():
         if status_filter != "All":
             filtered_by_status = []
             for feature in filtered_features:
-                feature_scans = get_scans_for_feature(db, feature["id"])
+                feature_scans = get_scans_for_feature(feature["id"])
                 if not feature_scans:
                     if status_filter == "Not Scanned":
                         filtered_by_status.append(feature)
@@ -881,8 +874,7 @@ def render_list_view():
                     confirm_col1, confirm_col2 = st.columns(2)
                     with confirm_col1:
                         if st.button("✅ Yes, Delete", type="primary", use_container_width=True):
-                            deleted_features, deleted_scans = delete_features(db, list(st.session_state.selected_feature_ids))
-                            save_database(db)
+                            deleted_features, deleted_scans = delete_features(list(st.session_state.selected_feature_ids))
                             st.session_state.selected_feature_ids = set()
                             st.session_state.select_all = False
                             st.session_state.show_delete_confirmation = False
@@ -898,7 +890,7 @@ def render_list_view():
         st.markdown(f"### 📋 Features ({len(filtered_features)} of {len(features)})")
 
         for feature in filtered_features:
-            feature_scans = get_scans_for_feature(db, feature["id"])
+            feature_scans = get_scans_for_feature(feature["id"])
             latest_classification = "Not Scanned"
             last_scan_date = "Never"
 
