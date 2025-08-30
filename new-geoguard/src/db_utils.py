@@ -171,3 +171,44 @@ def delete_legal_rules(rule_ids: List[str]) -> int:
     except Exception as e:
         print(f"Error deleting legal rules: {e}")
         return 0
+    
+# ========================= Terminology ==========================
+
+def get_all_terminology() -> List[Dict[str, str]]:
+    """Fetches all terminology entries from the database."""
+    try:
+        response = supabase.table("terminology").select("term, expansion").execute()
+        return response.data
+    except Exception as e:
+        print(f"Error fetching terminology: {e}")
+        return []
+    
+def add_or_update_terminology(term: str, expansion: str) -> Optional[str]:
+    """
+    Add a new term or update an existing one.
+    Returns the term on success.
+    """
+    if not term or not expansion:
+        print("Error: Both term and expansion are required.")
+        return None
+    try:
+        data_to_upsert = {"term": term.strip(), "expansion": expansion.strip()}
+        response = supabase.table("terminology").upsert(data_to_upsert, on_conflict="term").execute()
+        return response.data[0]['term']
+    except Exception as e:
+        print(f"Error adding or updating terminology: {e}")
+        return None
+
+def delete_terminology(terms: List[str]) -> int:
+    """
+    Delete terminology by a list of terms.
+    Returns the number of deleted items.
+    """
+    if not terms:
+        return 0
+    try:
+        response = supabase.table("terminology").delete().in_("term", terms).execute()
+        return len(response.data)
+    except Exception as e:
+        print(f"Error deleting terminology: {e}")
+        return 0

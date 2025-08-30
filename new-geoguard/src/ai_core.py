@@ -8,7 +8,7 @@ import uuid
 import hashlib
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
-from .db_utils import get_all_legal_rules
+from .db_utils import get_all_legal_rules, get_all_terminology
 
 
 from dotenv import load_dotenv
@@ -22,7 +22,6 @@ load_dotenv()
 GOOGLE_API_KEY = os.getenv("GEMINI_API_KEY")
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
 LEGAL_DB_PATH = os.getenv("LEGAL_DB_PATH", os.path.join("data", "legal_db.json"))
-TERMINOLOGY_PATH = os.getenv("TERMINOLOGY_PATH", os.path.join("data", "terminology.json"))
 
 GEN_TEMPERATURE = float(os.getenv("GEN_TEMPERATURE", "0.1"))
 GEN_MAX_TOKENS   = int(os.getenv("GEN_MAX_TOKENS", "1200"))
@@ -141,13 +140,10 @@ def _context_block(rules: List[Dict[str, Any]]) -> str:
 # ==================== Terminology (acronym/codename) =================
 def _load_terminology() -> Dict[str, str]:
     try:
-        with open(TERMINOLOGY_PATH, "r", encoding="utf-8") as f:
-            data = json.load(f)
-        terms: Dict[str, str] = {}
-        for k, v in (data or {}).items():
-            if isinstance(k, str) and isinstance(v, str):
-                terms[k] = v
-        return terms
+        # Fetch from the database via db_utils
+        data = get_all_terminology()
+        # Convert the list of dicts to a single dict for fast lookups
+        return {item['term']: item['expansion'] for item in data}
     except Exception:
         return {}
 
