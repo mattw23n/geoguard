@@ -30,8 +30,8 @@ RULES_TOP_K = int(os.getenv("RULES_TOP_K", "12"))
 
 # -------- Audit behaviour (no file writes; only return meta to DB) --------
 # Kept as flags for UI display, but we never write snapshots to disk.
-PROMPT_INCLUDED_IN_AUDIT  = False
-CONTEXT_INCLUDED_IN_AUDIT = False
+PROMPT_INCLUDED_IN_AUDIT  = True
+CONTEXT_INCLUDED_IN_AUDIT = True
 
 # Module-level cache so callers can fetch metadata to store in DB
 _LAST_AUDIT_META: Optional[Dict[str, Any]] = None
@@ -287,14 +287,15 @@ def get_ai_analysis(feature_text: str,
     audit_id = str(uuid.uuid4())
     normalized_text, _feature_meta = _prepare_feature_text(feature_text, feature_topic, feature_description)
 
-    # Build rule context
+        # Build rule context
     all_rules = _load_legal_context()
     selected_rules = _select_relevant_rules(normalized_text, all_rules, RULES_TOP_K)
     rules_ctx_ids = [r.get("id") for r in selected_rules]
     rules_ctx_fp  = _rules_fingerprint(selected_rules)
     legal_db_fp   = _file_sha256(LEGAL_DB_PATH)
 
-    # Build prompt
+    # Build prompt + (optional) snapshots
+    context_snapshot_text = _context_block(selected_rules)  # used for optional audit snapshot
     prompt = _build_master_prompt(normalized_text, selected_rules)
 
     # Config
@@ -306,10 +307,10 @@ def get_ai_analysis(feature_text: str,
         response_schema=RESPONSE_SCHEMA,
     )
 
-    if not _MODEL:
-        _LAST_AUDIT_META = {
+    def _base_meta(status: str, raw_hash: Optional[str] = None) -> Dict[str, Any]:
+        meta = {
             "audit_id": audit_id,
-            "status": "error",
+            "status": status,
             "model": GEMINI_MODEL,
             "legal_db_fingerprint": legal_db_fp,
             "rules_context_ids": rules_ctx_ids,
@@ -317,6 +318,17 @@ def get_ai_analysis(feature_text: str,
             "prompt_included": PROMPT_INCLUDED_IN_AUDIT,
             "context_text_included": CONTEXT_INCLUDED_IN_AUDIT,
         }
+        if raw_hash is not None:
+            meta["raw_output_hash"] = raw_hash
+        # Snapshots only when flags are enabled
+        if PROMPT_INCLUDED_IN_AUDIT:
+            meta["prompt_snapshot"] = prompt
+        if CONTEXT_INCLUDED_IN_AUDIT:
+            meta["context_snapshot"] = context_snapshot_text
+        return meta
+
+    if not _MODEL:
+        _LAST_AUDIT_META = _base_meta(status="error")
         return json.dumps({
             "classification": "UNSURE",
             "reasoning": "[MODEL_NOT_CONFIGURED] Missing GEMINI_API_KEY.",
@@ -325,33 +337,12 @@ def get_ai_analysis(feature_text: str,
             "recommendations": []
         })
 
-    # Call model
     try:
         resp = _MODEL.generate_content(prompt, generation_config=generation_config)
         raw = getattr(resp, "text", "") or ""
-        raw_hash = _sha256_text(raw)
-        _LAST_AUDIT_META = {
-            "audit_id": audit_id,
-            "status": "ok",
-            "model": GEMINI_MODEL,
-            "raw_output_hash": raw_hash,
-            "legal_db_fingerprint": legal_db_fp,
-            "rules_context_ids": rules_ctx_ids,
-            "rules_context_fingerprint": rules_ctx_fp,
-            "prompt_included": PROMPT_INCLUDED_IN_AUDIT,
-            "context_text_included": CONTEXT_INCLUDED_IN_AUDIT,
-        }
+        _LAST_AUDIT_META = _base_meta(status="ok", raw_hash=_sha256_text(raw))
     except Exception as e:
-        _LAST_AUDIT_META = {
-            "audit_id": audit_id,
-            "status": "error",
-            "model": GEMINI_MODEL,
-            "legal_db_fingerprint": legal_db_fp,
-            "rules_context_ids": rules_ctx_ids,
-            "rules_context_fingerprint": rules_ctx_fp,
-            "prompt_included": PROMPT_INCLUDED_IN_AUDIT,
-            "context_text_included": CONTEXT_INCLUDED_IN_AUDIT,
-        }
+        _LAST_AUDIT_META = _base_meta(status="error")
         return json.dumps({
             "classification": "UNSURE",
             "reasoning": f"[LLM_CALL_FAILED] {e}",
@@ -359,6 +350,7 @@ def get_ai_analysis(feature_text: str,
             "triggered_rules": [],
             "recommendations": []
         })
+
 
     # Try to extract a JSON object if model included prose
     if not raw.strip().startswith("{"):
