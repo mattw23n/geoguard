@@ -227,6 +227,8 @@ E) If a location is stated but **no matching rule** exists in the reference cont
 CITATION RULES:
 - When you cite a rule, use its **id** exactly as given. The only valid ids are: {allowed_ids}.
 - Mention **only rules you cite** in "regulation" or "triggered_rules". Do **not** list other rules in the reasoning.
+- In your "reasoning", do not mention any law name, code, bill number, or acronym that is not in the REFERENCE LEGAL CONTEXT. 
+- If you would otherwise need to reference one (e.g., "GDPR", "SB-976"), you MUST return "UNSURE" and explain that the relevant law is outside the reference context.
 
 REFERENCE LEGAL CONTEXT:
 {context_text}
@@ -387,7 +389,8 @@ def parse_llm_response(response_text: str) -> Dict[str, Any]:
     Parse & sanitize the LLM JSON.
     - No confidence field.
     - Validate 'regulation' and 'triggered_rules' against legal_db.
-    - Scrub reasoning so it doesn't name-drop uncited rule IDs.
+    - Reasoning: replace cited rule IDs with 'Title (`id`)', remove uncited IDs,
+      and if external (unknown) law names/IDs appear, set classification to UNSURE.
     """
     if not response_text:
         return {
@@ -399,6 +402,7 @@ def parse_llm_response(response_text: str) -> Dict[str, Any]:
         }
 
     text = response_text.strip()
+    # Strip code fences if the model returns ```json ... ```
     if "```json" in text:
         try:
             text = text.split("```json", 1)[1].split("```", 1)[0]
@@ -417,13 +421,18 @@ def parse_llm_response(response_text: str) -> Dict[str, Any]:
             "recommendations": [],
         }
 
+    # Load rules and build lookups
     rules = _load_legal_context()
     allowed_ids = {str(r.get("id", "")) for r in rules if r.get("id")}
+    id_to_title = {str(r.get("id")): (r.get("title") or str(r.get("id"))) for r in rules if r.get("id")}
+    allowed_titles = {(r.get("title") or "").lower() for r in rules}
 
+    # Normalize classification
     cls = str(payload.get("classification", "UNSURE")).upper().strip()
     if cls not in {"YES", "NO", "UNSURE"}:
         cls = "UNSURE"
 
+    # Validate 'regulation'
     regulation = payload.get("regulation", "None")
     extra_reason = ""
     if regulation not in allowed_ids and regulation != "None":
@@ -431,6 +440,7 @@ def parse_llm_response(response_text: str) -> Dict[str, Any]:
         cls = "UNSURE"
         extra_reason = " Cited regulation is not in the reference context; set to UNSURE."
 
+    # Validate & order 'triggered_rules'
     trig = payload.get("triggered_rules", []) or []
     def _rank(item: Dict[str, Any]) -> int:
         v = str(item.get("verdict", "")).lower()
@@ -438,14 +448,54 @@ def parse_llm_response(response_text: str) -> Dict[str, Any]:
     valid_trig = [t for t in trig if str(t.get("rule_id", "")) in allowed_ids]
     valid_trig.sort(key=_rank)
 
+    # Build set of actually cited IDs (for formatting)
     cited_ids = set()
     if regulation != "None":
         cited_ids.add(regulation)
     cited_ids.update({str(t.get("rule_id")) for t in valid_trig})
 
+    # ----- Reasoning cleanup & external-law guard -----
     reasoning = (payload.get("reasoning", "") or "").strip()
+
+    # 1) Replace cited IDs with 'Title (`id`)' so prose is human-friendly
+    for rid in cited_ids:
+        title = id_to_title.get(rid, rid)
+        reasoning = re.sub(rf"\b{re.escape(rid)}\b", f"{title} (`{rid}`)", reasoning)
+
+    # 2) Detect any external-law mentions (not in our legal_db)
+    #    - common legal acronyms
+    LEGAL_ACRONYMS = r"\b(GDPR|CCPA|CPRA|COPPA|HIPAA|PIPEDA|AADC|DMA|DSA|FERPA|LGPD|PDPA)\b"
+    #    - bill patterns like SB-123, SB 123, HB 5678, AB 34
+    BILL_PATTERN = r"\b(?:SB|HB|AB|LB)\s?-?\s?\d{2,5}\b"
+    #    - generic 'Act|Regulation|Code|Directive' when paired with a proper noun before it
+    GENERIC_LAW = r"\b([A-Z][a-z]+(?:\s[A-Z][a-z]+){0,4})\s(?:Act|Regulation|Code|Directive)\b"
+
+    external_hits = []
+    for pat in (LEGAL_ACRONYMS, BILL_PATTERN, GENERIC_LAW):
+        for m in re.finditer(pat, reasoning):
+            hit = m.group(0)
+            # ignore if this hit corresponds to one of our allowed titles/ids
+            if hit.lower() in allowed_titles:
+                continue
+            if hit in allowed_ids:
+                continue
+            external_hits.append(hit)
+
+    # 3) Remove any uncited allowed IDs mentioned accidentally
     for rid in (allowed_ids - cited_ids):
-        reasoning = re.sub(rf"\b{re.escape(rid)}\b", "that rule", reasoning)
+        reasoning = re.sub(rf"\b{re.escape(rid)}\b", "", reasoning)
+
+    # 4) If external hits exist, we make the verdict UNSURE and note why
+    if external_hits:
+        cls = "UNSURE"
+        for h in external_hits:
+            reasoning = reasoning.replace(h, "").strip()
+        ext_list = ", ".join(sorted(set(external_hits)))
+        extra_reason = (extra_reason + " External law reference(s) removed: "
+                        f"{ext_list}. Not in reference context; set to UNSURE.").strip()
+
+    # 5) Normalize whitespace after removals
+    reasoning = re.sub(r"\s{2,}", " ", reasoning).strip()
 
     if extra_reason:
         reasoning = (reasoning + " " + extra_reason).strip()
