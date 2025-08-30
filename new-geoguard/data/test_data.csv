@@ -3,3 +3,7 @@ feature_description,ground_truth_classification
 "We are rolling out the new 'Stickers' feature to the US and Canada first for market testing purposes.","NO"
 "This feature requires users to verify they are over 18 to comply with Indonesia's Child Protection Law.","YES"
 "The new video filter is available globally except in South Korea due to performance issues on local servers.","NO"
+"This feature might violate a law in a country we have no data on.","UNSURE"
+"The system flags content for moderation based on user reports but there is no legal requirement specified.","UNSURE"
+"A test feature where users can share content, but the law is unclear about liability.","UNSURE"
+"Users can schedule posts only during certain hours, as recommended by internal guidelines.","NO"
