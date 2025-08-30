@@ -251,11 +251,11 @@ def process_batch_csv(uploaded_file):
 def render_classification_badge(classification):
     """Renders a styled classification badge"""
     if classification == "YES":
-        st.error(f"🚨 **High Risk:** {classification}")
+        st.error(f"🚨 {classification}, requires legal compliance")
     elif classification == "NO":
-        st.success(f"✅ **Low Risk:** {classification}")
+        st.success(f"✅ {classification}, does not require legal compliance")
     elif classification == "UNSURE":
-        st.warning(f"⚠️ **Uncertain:** {classification}")
+        st.warning(f"⚠️ {classification}, Human review required")
     else:
         st.info(f"❓ **Unknown:** {classification}")
 
@@ -265,7 +265,7 @@ def render_analysis_section(analysis):
     classification = analysis.get('classification', 'N/A')
 
     # Classification with appropriate styling
-    st.subheader("📊 Risk Assessment")
+    st.subheader("📊 Assessment")
     render_classification_badge(classification)
 
     # (Removed confidence—LLM no longer returns it)
@@ -681,10 +681,20 @@ def render_detail_view():
             with metric_col1:
                 st.metric("Total Scans", total_scans)
             with metric_col2:
-                st.metric("High Risk Detected", high_risk_scans, delta=f"{high_risk_scans}/{total_scans}")
+                st.metric("Compliance Needed for", high_risk_scans, delta=f"{high_risk_scans}/{total_scans}")
             with metric_col3:
                 if latest_scan:
-                    st.metric("Latest Status", latest_scan['analysis'].get('classification', 'N/A'))
+                    classification = latest_scan['analysis'].get('classification', 'N/A')
+
+                    if classification == "YES":
+                        status_text = "YES, Needs Compliance"
+                    elif classification == "NO":
+                        status_text = "NO, Compliant"
+                    elif classification == "UNSURE":
+                        status_text = "UNSURE, Review Required"
+                    else:
+                        status_text = "Unknown"
+                    st.metric("Latest Status", status_text)
 
             st.divider()
 
@@ -695,11 +705,11 @@ def render_detail_view():
                 classification = scan['analysis'].get('classification', 'N/A')
 
                 if classification == "YES":
-                    status_emoji = "🚨"; status_text = "High Risk"
+                    status_emoji = "🚨"; status_text = "Needs Compliance"
                 elif classification == "NO":
                     status_emoji = "✅"; status_text = "Compliant"
                 elif classification == "UNSURE":
-                    status_emoji = "⚠️"; status_text = "Needs Review"
+                    status_emoji = "⚠️"; status_text = "Review Required"
                 else:
                     status_emoji = "❓"; status_text = "Unknown"
 
@@ -799,7 +809,7 @@ def render_list_view():
         with metric_col2:
             st.metric("Total Scans", total_scans)
         with metric_col3:
-            st.metric("High Risk Features", high_risk_features)
+            st.metric("Compliance Needed for", high_risk_features)
         with metric_col4:
             compliance_rate = round((total_features - high_risk_features) / total_features * 100, 1) if total_features > 0 else 0
             st.metric("Compliance Rate", f"{compliance_rate}%")
@@ -810,7 +820,7 @@ def render_list_view():
         with search_col1:
             search_term = st.text_input("🔍 Search features", placeholder="Search by title or description...")
         with search_col2:
-            status_filter = st.selectbox("Filter by Status", ["All", "High Risk", "Compliant", "Not Scanned", "Needs Review"])
+            status_filter = st.selectbox("Filter by Status", ["All", "Needs Compliance", "Compliant", "Not Scanned", "Review Required"])
 
         filtered_features = features
         if search_term:
@@ -828,9 +838,9 @@ def render_list_view():
                         filtered_by_status.append(feature)
                 else:
                     latest_classification = feature_scans[0]['analysis'].get('classification', 'N/A')
-                    if (status_filter == "High Risk" and latest_classification == "YES") or \
+                    if (status_filter == "Needs Compliance" and latest_classification == "YES") or \
                        (status_filter == "Compliant" and latest_classification == "NO") or \
-                       (status_filter == "Needs Review" and latest_classification == "UNSURE"):
+                       (status_filter == "Review Required" and latest_classification == "UNSURE"):
                         filtered_by_status.append(feature)
             filtered_features = filtered_by_status
 
@@ -898,11 +908,11 @@ def render_list_view():
                 latest_classification = feature_scans[0]['analysis'].get('classification', 'N/A')
 
             if latest_classification == "YES":
-                status_emoji = "🚨"; status_text = "High Risk"
+                status_emoji = "🚨"; status_text = "Needs Compliance"
             elif latest_classification == "NO":
                 status_emoji = "✅"; status_text = "Compliant"
             elif latest_classification == "UNSURE":
-                status_emoji = "⚠️"; status_text = "Needs Review"
+                status_emoji = "⚠️"; status_text = "Review Required"
             else:
                 status_emoji = "❓"; status_text = "Not Scanned"
 
@@ -955,7 +965,7 @@ with st.sidebar:
     - 📤 Batch upload via CSV
     - 📁 Upload PRD/TRD files
     - 🔍 Run AI compliance scans
-    - 📊 Track risk assessments
+    - 📊 Track assessments
     - 📈 Monitor compliance over time
     """)
 
