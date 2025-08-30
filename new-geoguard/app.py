@@ -13,7 +13,10 @@ from src.db_utils import (
     get_all_legal_rules,
     delete_features,
     add_or_update_legal_rule,
-    delete_legal_rules
+    delete_legal_rules,
+    get_all_terminology,
+    add_or_update_terminology,
+    delete_terminology
 )
 
 @st.cache_data(show_spinner=False)
@@ -84,6 +87,8 @@ if "select_all" not in st.session_state:
     st.session_state.select_all = False
 if "rule_to_edit" not in st.session_state:
     st.session_state.rule_to_edit = None
+if "term_to_edit" not in st.session_state:
+    st.session_state.term_to_edit = None
     
 def _sev_class(sev: str) -> str:
     s = (sev or "").lower()
@@ -338,86 +343,158 @@ def render_feature_snapshot(snapshot, key_prefix: str = "snapshot"):
         else:
             st.code(trd if trd else "None")
 
+# ==============================================================================
+#                           RENDER SETTINGS VIEW
+# ==============================================================================
 def render_settings_view():
-    """Renders the page for managing legal rules."""
-    st.title("⚙️ Settings: Manage Legal Rules")
+    """Renders the page for managing legal rules and terminology."""
+    st.title("⚙️ Settings")
 
     if st.button("← Back to Dashboard"):
         st.session_state.view = "list"
         st.session_state.rule_to_edit = None
+        st.session_state.term_to_edit = None
         st.rerun()
 
     st.markdown("---")
 
-    # --- Form to Add or Edit a Rule ---
-    st.subheader("➕ Add or Update a Legal Rule")
+    col1, col2 = st.columns(2)
+    all_rules = get_all_legal_rules()
+    all_terms = get_all_terminology()
+    existing_rule_ids = {r['id'] for r in all_rules}
+    existing_term_keys = {t['term'] for t in all_terms}
 
-    # If a rule is being edited, load its data. Otherwise, start with a blank slate.
-    editing_rule = st.session_state.rule_to_edit or {}
+    # =================== COLUMN 1: LEGAL RULES ===================
+    with col1:
+        st.header("⚖️ Legal Rules")
+        st.markdown("Manage the legal knowledge base used for AI analysis.")
 
-    with st.form(key="rule_form", clear_on_submit=True):
-        st.markdown("##### Core Information")
-        rule_id = st.text_input("Rule ID (e.g., `us_coppa`)", value=editing_rule.get("id", "")).strip()
-        title = st.text_input("Title", value=editing_rule.get("title", ""))
-        jurisdiction = st.text_input("Jurisdiction (e.g., `USA`, `EU`)", value=editing_rule.get("jurisdiction", ""))
-        severity = st.selectbox("Severity", ["Low", "Medium", "High", "Critical"], index=["Low", "Medium", "High", "Critical"].index(editing_rule.get("severity", "Medium").title()))
-        link = st.text_input("Link to Full Text", value=editing_rule.get("link", ""), placeholder="https://...")
+        # --- Form to Add or Edit a Rule ---
+        st.subheader("➕ Add or Update a Rule")
+        editing_rule = st.session_state.rule_to_edit or {}
 
-        st.markdown("##### Summaries & Keywords")
-        summary = st.text_area("AI Summary (for analysis)", value=editing_rule.get("summary", ""), height=100)
-        human_summary = st.text_area("Human-legible Summary", value=editing_rule.get("human_summary", ""), height=100)
+        with st.form(key="rule_form", clear_on_submit=True):
+            st.markdown("##### Core Information")
+            rule_id = st.text_input("Rule ID (e.g., `us_coppa`)", value=editing_rule.get("id", "")).strip()
+            title = st.text_input("Title", value=editing_rule.get("title", ""))
+            jurisdiction = st.text_input("Jurisdiction (e.g., `USA`, `EU`)", value=editing_rule.get("jurisdiction", ""))
+            severity = st.selectbox("Severity", ["Low", "Medium", "High", "Critical"], index=["Low", "Medium", "High", "Critical"].index(editing_rule.get("severity", "Medium").title()))
+            link = st.text_input("Link to Full Text", value=editing_rule.get("link", ""), placeholder="https://...")
 
-        submitted = st.form_submit_button("💾 Save Rule", type="primary")
+            st.markdown("##### Summaries & Keywords")
+            summary = st.text_area("AI Summary (for analysis)", value=editing_rule.get("summary", ""), height=100)
+            human_summary = st.text_area("Human-legible Summary", value=editing_rule.get("human_summary", ""), height=100)
 
-        if submitted:
-            if not all([rule_id, title, jurisdiction, severity, summary, human_summary]):
-                st.error("Please fill in all required fields.")
-            else:
-                rule_details = {
-                    "id": rule_id,
-                    "title": title,
-                    "jurisdiction": jurisdiction,
-                    "severity": severity.lower(),
-                    "summary": summary,
-                    "human_summary": human_summary,
-                    "link": link,
-                }
-                add_or_update_legal_rule(rule_details)
-                st.success(f"✅ Rule '{rule_id}' saved successfully!")
-                st.session_state.rule_to_edit = None # Clear editing state
-                st.cache_data.clear() # Clear the legal index cache
+            submitted = st.form_submit_button("💾 Save Rule", type="primary")
+
+            if submitted:
+                if not all([rule_id, title, jurisdiction, severity, summary, human_summary]):
+                    st.error("Please fill in all required fields for the rule.")
+                elif not editing_rule and rule_id in existing_rule_ids:
+                    st.error(f"Rule ID '{rule_id}' already exists. To update it, click its 'Edit' button below.")
+                else:
+                    rule_details = {
+                        "id": rule_id, "title": title, "jurisdiction": jurisdiction,
+                        "severity": severity.lower(), "summary": summary,
+                        "human_summary": human_summary, "link": link,
+                    }
+                    add_or_update_legal_rule(rule_details)
+                    st.success(f"✅ Rule '{rule_id}' saved successfully!")
+                    st.session_state.rule_to_edit = None
+                    st.cache_data.clear()
+                    st.rerun()
+
+        if st.session_state.rule_to_edit:
+            if st.button("Cancel Editing Rule"):
+                st.session_state.rule_to_edit = None
                 st.rerun()
 
-    if st.session_state.rule_to_edit:
-        if st.button("Cancel Editing"):
-            st.session_state.rule_to_edit = None
-            st.rerun()
+        st.markdown("---")
 
-    st.markdown("---")
+        # --- List of Existing Rules ---
+        st.subheader("Existing Rules")
+        all_rules = get_all_legal_rules()
+        if not all_rules:
+            st.info("No legal rules found.")
+        else:
+            for rule in all_rules:
+                with st.container(border=True):
+                    r_col1, r_col2, r_col3 = st.columns([4, 1, 1])
+                    with r_col1:
+                        st.markdown(f"**{rule.get('title', 'No Title')}** (`{rule.get('id')}`)")
+                        st.caption(f"Jurisdiction: {rule.get('jurisdiction')} | Severity: {rule.get('severity', 'N/A').title()}")
+                    with r_col2:
+                        if st.button("✏️ Edit", key=f"edit_{rule['id']}", use_container_width=True):
+                            st.session_state.rule_to_edit = rule
+                            st.rerun()
+                    with r_col3:
+                        if st.button("🗑️ Delete", key=f"del_{rule['id']}", type="secondary", use_container_width=True):
+                            delete_legal_rules([rule['id']])
+                            st.success(f"🗑️ Rule '{rule['id']}' deleted.")
+                            st.cache_data.clear()
+                            st.rerun()
 
-    # --- List of Existing Rules ---
-    st.subheader("⚖️ Existing Legal Rules")
-    all_rules = get_all_legal_rules()
+    # =================== COLUMN 2: TERMINOLOGY ===================
+    with col2:
+        st.header("📚 Terminology")
+        st.markdown("Manage internal acronyms and codenames for the AI to understand.")
 
-    if not all_rules:
-        st.info("No legal rules found in the database. Add your first one above!")
-    else:
-        for rule in all_rules:
-            with st.container(border=True):
-                col1, col2, col3 = st.columns([4, 1, 1])
-                with col1:
-                    st.markdown(f"**{rule.get('title', 'No Title')}** (`{rule.get('id')}`)")
-                    st.caption(f"Jurisdiction: {rule.get('jurisdiction')} | Severity: {rule.get('severity', 'N/A').title()}")
-                with col2:
-                    if st.button("✏️ Edit", key=f"edit_{rule['id']}", use_container_width=True):
-                        st.session_state.rule_to_edit = rule
-                        st.rerun()
-                with col3:
-                    if st.button("🗑️ Delete", key=f"del_{rule['id']}", type="secondary", use_container_width=True):
-                        delete_legal_rules([rule['id']])
-                        st.success(f"🗑️ Rule '{rule['id']}' deleted.")
-                        st.cache_data.clear() # Clear the legal index cache
-                        st.rerun()
+        # --- Form to Add or Edit a Term ---
+        st.subheader("➕ Add or Update a Term")
+        editing_term = st.session_state.term_to_edit or {}
+
+        with st.form(key="term_form", clear_on_submit=True):
+            term = st.text_input("Term (e.g., `GH`, `CDS`)", value=editing_term.get("term", "")).strip()
+            expansion = st.text_area("Expansion (what it means)", value=editing_term.get("expansion", ""), height=100)
+            
+            submitted = st.form_submit_button("💾 Save Term", type="primary")
+
+            if submitted:
+                # If editing, use the original term value. If adding, use the user's input.
+                final_term = term
+
+                if not final_term or not expansion:
+                    st.error("Term and Expansion cannot be empty.")
+                # Check for duplicates ONLY when adding a new term
+                elif not editing_term and final_term in existing_term_keys:
+                    st.error(f"Term '{final_term}' already exists. To update it, click its 'Edit' button below.")
+                else:
+                    add_or_update_terminology(final_term, expansion)
+                    st.success(f"✅ Term '{final_term}' saved successfully!")
+                    st.session_state.term_to_edit = None
+                    st.cache_data.clear()
+                    st.rerun()
+
+        if st.session_state.term_to_edit:
+            if st.button("Cancel Editing Term"):
+                st.session_state.term_to_edit = None
+                st.rerun()
+
+        st.markdown("---")
+
+        # --- List of Existing Terms ---
+        st.subheader("Existing Terms")
+        all_terms = get_all_terminology()
+
+        if not all_terms:
+            st.info("No terminology found.")
+        else:
+            for term_item in all_terms:
+                with st.container(border=True):
+                    t_col1, t_col2, t_col3 = st.columns([4, 1, 1])
+                    with t_col1:
+                        st.markdown(f"**{term_item['term']}**")
+                        st.caption(term_item['expansion'])
+                    with t_col2:
+                        if st.button("✏️ Edit", key=f"edit_term_{term_item['term']}", use_container_width=True):
+                            st.session_state.term_to_edit = term_item
+                            st.rerun()
+                    with t_col3:
+                        if st.button("🗑️ Delete", key=f"del_term_{term_item['term']}", type="secondary", use_container_width=True):
+                            delete_terminology([term_item['term']])
+                            st.success(f"🗑️ Term '{term_item['term']}' deleted.")
+                            st.cache_data.clear()
+                            st.rerun()
 
 def render_audit_tab(audit: dict, key_prefix: str = "audit") -> None:
     audit = audit or {}
