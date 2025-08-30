@@ -171,3 +171,14 @@ def delete_legal_rules(rule_ids: List[str]) -> int:
     except Exception as e:
         print(f"Error deleting legal rules: {e}")
         return 0
+    
+# ========================= Terminology ==========================
+
+def get_all_terminology() -> List[Dict[str, str]]:
+    """Fetches all terminology entries from the database."""
+    try:
+        response = supabase.table("terminology").select("term, expansion").execute()
+        return response.data
+    except Exception as e:
+        print(f"Error fetching terminology: {e}")
+        return []

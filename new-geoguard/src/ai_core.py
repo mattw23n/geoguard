@@ -8,7 +8,7 @@ import uuid
 import hashlib
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
-from .db_utils import get_all_legal_rules
+from .db_utils import get_all_legal_rules, get_all_terminology
 
 
 from dotenv import load_dotenv
@@ -141,13 +141,10 @@ def _context_block(rules: List[Dict[str, Any]]) -> str:
 # ==================== Terminology (acronym/codename) =================
 def _load_terminology() -> Dict[str, str]:
     try:
-        with open(TERMINOLOGY_PATH, "r", encoding="utf-8") as f:
-            data = json.load(f)
-        terms: Dict[str, str] = {}
-        for k, v in (data or {}).items():
-            if isinstance(k, str) and isinstance(v, str):
-                terms[k] = v
-        return terms
+        # Fetch from the database via db_utils
+        data = get_all_terminology()
+        # Convert the list of dicts to a single dict for fast lookups
+        return {item['term']: item['expansion'] for item in data}
     except Exception:
         return {}
 
