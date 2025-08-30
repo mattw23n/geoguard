@@ -130,6 +130,8 @@ def get_scans_for_feature(feature_id: str) -> List[Dict[str, Any]]:
         print(f"Error fetching scans for feature {feature_id}: {e}")
         return []
     
+# ========================== Legal Rules ===========================
+    
 def get_all_legal_rules() -> List[Dict[str, Any]]:
     """Fetches all legal rules from the database."""
     try:
@@ -138,3 +140,34 @@ def get_all_legal_rules() -> List[Dict[str, Any]]:
     except Exception as e:
         print(f"Error fetching legal rules: {e}")
         return []
+    
+def add_or_update_legal_rule(rule_details: Dict[str, Any]) -> Optional[str]:
+    """
+    Add a new legal rule or update an existing one using its 'id'.
+    The dictionary must contain an 'id' key.
+    Returns the rule id on success.
+    """
+    if not rule_details.get("id"):
+        print("Error: Rule details must include an 'id' to add or update.")
+        return None
+    try:
+        # Upsert handles both creating and updating in a single call
+        response = supabase.table("laws").upsert(rule_details, on_conflict="id").execute()
+        return response.data[0]['id']
+    except Exception as e:
+        print(f"Error adding or updating legal rule: {e}")
+        return None
+
+def delete_legal_rules(rule_ids: List[str]) -> int:
+    """
+    Delete legal rules by a list of IDs.
+    Returns the number of deleted rules.
+    """
+    if not rule_ids:
+        return 0
+    try:
+        response = supabase.table("laws").delete().in_("id", rule_ids).execute()
+        return len(response.data)
+    except Exception as e:
+        print(f"Error deleting legal rules: {e}")
+        return 0
