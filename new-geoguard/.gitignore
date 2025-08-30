@@ -11,6 +11,3 @@ venv/
 # IDEs
 .vscode/
 .idea/
-
-# Runtime Data
-data/database.json
